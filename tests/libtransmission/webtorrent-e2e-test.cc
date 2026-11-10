@@ -338,7 +338,7 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
 
     if (verify_complete)
     {
-        EXPECT_TRUE(tr::test::waitFor([tor] { return tr_torrentStat(tor).percentDone >= 1.0; }, 60000))
+        EXPECT_TRUE(tr::test::waitFor([tor] { return tr_torrentStat(tor).percent_done >= 1.0; }, 60000))
             << "WebRTC peer exchanged the handshake but failed to deliver a verified torrent";
         EXPECT_GE(state->served_bytes.load(), state->total_size.load())
             << "The local browser-style peer did not serve the full payload";
