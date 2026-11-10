@@ -73,8 +73,8 @@ TEST_F(WebTorrentAnnouncerEnabledTest, AnnounceOverLocalWebSocket)
     auto server = std::make_shared<rtc::WebSocketServer>(config);
 
     auto const expected_hash = std::string(20, 'A');
-    auto const response = std::string{ "{\\\"action\\\":\\\"announce\\\",\\\"info_hash\\\":\\\"" } +
-        expected_hash + "\\\",\\\"interval\\\":125,\\\"complete\\\":2,\\\"incomplete\\\":1}";
+    auto const response = std::string{ R"({"action":"announce","info_hash":")" } +
+        expected_hash + R"(","interval":125,"complete":2,"incomplete":1})";
 
     auto seen = std::atomic<int>{ 0 };
     server->onClient(
@@ -85,7 +85,7 @@ TEST_F(WebTorrentAnnouncerEnabledTest, AnnounceOverLocalWebSocket)
                 [](rtc::binary) {},
                 [weak, &seen, response](std::string message)
                 {
-                    if (message.find("\\\"action\\\":\\\"announce\\\"") != std::string::npos)
+                    if (message.find(R"("action":"announce")") != std::string::npos)
                     {
                         ++seen;
                         if (auto ws = weak.lock())
