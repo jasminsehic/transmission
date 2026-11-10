@@ -471,10 +471,8 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
             in_flight.clear();
             answer_queue.clear();
             registrations.clear();
-            for (auto& pending : failed)
-            {
-                pending.callback(response_from(pending.request, false, reason));
-            }
+            // Remove this session before invoking callbacks: a callback may
+            // synchronously retry, which must open a new connection.
             if (auto parent = owner.lock())
             {
                 auto it = parent->connections.find(url);
@@ -482,6 +480,10 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                 {
                     parent->connections.erase(it);
                 }
+            }
+            for (auto& pending : failed)
+            {
+                pending.callback(response_from(pending.request, false, reason));
             }
         }
 

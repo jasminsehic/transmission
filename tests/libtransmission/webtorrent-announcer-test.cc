@@ -355,3 +355,95 @@ TEST_F(WebTorrentAnnouncerEnabledTest, TimedOutAnnounceReopensTrackerConnection)
     }
     server->stop();
 }
+
+TEST_F(WebTorrentAnnouncerEnabledTest, ReentrantRetryAfterDisconnectUsesNewConnection)
+{
+    auto config = rtc::WebSocketServer::Configuration{};
+    config.port = 0;
+    config.bindAddress = "127.0.0.1";
+    auto server = std::make_shared<rtc::WebSocketServer>(config);
+
+    auto const hash = std::string(20, 'A');
+    auto const response = std::string{ R"({"action":"announce","info_hash":")" } +
+        hash + R"(","interval":125,"complete":4,"incomplete":1})";
+    auto connections = std::atomic<int>{ 0 };
+    auto clients = std::vector<std::shared_ptr<rtc::WebSocket>>{};
+    auto mutex = std::mutex{};
+    server->onClient(
+        [&](std::shared_ptr<rtc::WebSocket> socket)
+        {
+            auto const number = ++connections;
+            {
+                auto guard = std::lock_guard{ mutex };
+                clients.emplace_back(socket);
+            }
+            auto weak = std::weak_ptr<rtc::WebSocket>{ socket };
+            socket->onMessage(
+                [](rtc::binary) {},
+                [weak, number, response](std::string message)
+                {
+                    if (message.find(R"("action":"announce")") == std::string::npos)
+                    {
+                        return;
+                    }
+                    if (auto ws = weak.lock())
+                    {
+                        if (number == 1)
+                        {
+                            ws->close();
+                        }
+                        else
+                        {
+                            ws->send(response);
+                        }
+                    }
+                });
+        });
+
+    auto announcer = tr_announcer_ws{ session_ };
+    auto request = tr_announce_request{};
+    request.info_hash.fill(std::byte{ 'A' });
+    request.peer_id.fill('B');
+    request.announce_url = tr_interned_string{ "ws://127.0.0.1:" + std::to_string(server->port()) };
+    request.numwant = 0;
+
+    auto first_failed = std::atomic<bool>{ false };
+    auto second_succeeded = std::atomic<bool>{ false };
+    auto completed = std::atomic<bool>{ false };
+    session_->run_in_session_thread(
+        [&]
+        {
+            announcer.announce(
+                request,
+                [&](tr_announce_response const& first)
+                {
+                    first_failed = !first.did_connect;
+                    // Retry inside the failure callback, before it returns.
+                    announcer.announce(
+                        request,
+                        [&](tr_announce_response const& second)
+                        {
+                            second_succeeded = second.did_connect && second.errmsg.empty() &&
+                                second.seeders.value_or(-1) == 4;
+                            completed = true;
+                        });
+                });
+        });
+
+    ASSERT_TRUE(tr::test::waitFor([&] { return completed.load(); }, 12000));
+    EXPECT_TRUE(first_failed);
+    EXPECT_TRUE(second_succeeded);
+    EXPECT_EQ(connections.load(), 2);
+
+    server->onClient(nullptr);
+    {
+        auto guard = std::lock_guard{ mutex };
+        for (auto& socket : clients)
+        {
+            socket->onMessage(nullptr);
+            socket->close();
+        }
+        clients.clear();
+    }
+    server->stop();
+}
