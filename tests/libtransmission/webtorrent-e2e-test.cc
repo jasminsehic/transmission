@@ -1,6 +1,8 @@
-// Fully local WebTorrent tracker -> ICE -> DataChannel -> BitTorrent handshake.
+// Fully local WebTorrent tracker -> ICE -> DataChannel -> BitTorrent transfer.
 // No Internet STUN servers, public trackers, or third-party WebTorrent clients.
 #include <atomic>
+#include <cstddef>
+#include <limits>
 #include <chrono>
 #include <cstdint>
 #include <memory>
@@ -44,6 +46,8 @@ protected:
         settings_map->insert_or_assign(TR_KEY_webtorrent_ice_servers, tr_variant::Vector{});
         tr::test::SessionTest::SetUp();
     }
+
+    void exercise(bool verify_complete);
 };
 
 struct WebTorrentTestTracker
@@ -54,16 +58,43 @@ struct WebTorrentTestTracker
     std::vector<std::shared_ptr<rtc::DataChannel>> channels;
     std::atomic<bool> saw_announce = false;
     std::atomic<bool> got_handshake = false;
+    std::atomic<uint64_t> served_bytes = 0;
+    std::atomic<uint32_t> piece_count = 0;
+    std::atomic<uint64_t> total_size = 0;
+    bool serve_pieces = false;
+    bool handshake_read = false;
+    std::vector<std::byte> received;
     std::string const remote_peer_id = "-TEST00-123456789012";
 };
 
-TEST_F(WebTorrentEndToEndTest, BrowserStylePeerCompletesBitTorrentHandshake)
+namespace
+{
+uint32_t read_u32(std::vector<std::byte> const& bytes, size_t offset)
+{
+    auto const b0 = static_cast<uint32_t>(std::to_integer<unsigned char>(bytes[offset]));
+    auto const b1 = static_cast<uint32_t>(std::to_integer<unsigned char>(bytes[offset + 1U]));
+    auto const b2 = static_cast<uint32_t>(std::to_integer<unsigned char>(bytes[offset + 2U]));
+    auto const b3 = static_cast<uint32_t>(std::to_integer<unsigned char>(bytes[offset + 3U]));
+    return (b0 << 24U) | (b1 << 16U) | (b2 << 8U) | b3;
+}
+
+void append_u32(rtc::binary& buffer, uint32_t value)
+{
+    buffer.push_back(std::byte{ static_cast<unsigned char>((value >> 24U) & 0xFFU) });
+    buffer.push_back(std::byte{ static_cast<unsigned char>((value >> 16U) & 0xFFU) });
+    buffer.push_back(std::byte{ static_cast<unsigned char>((value >> 8U) & 0xFFU) });
+    buffer.push_back(std::byte{ static_cast<unsigned char>(value & 0xFFU) });
+}
+} // namespace
+
+void WebTorrentEndToEndTest::exercise(bool const verify_complete)
 {
     auto cfg = rtc::WebSocketServer::Configuration{};
     cfg.port = 0;
     cfg.bindAddress = "127.0.0.1";
     auto server = std::make_shared<rtc::WebSocketServer>(cfg);
     auto state = std::make_shared<WebTorrentTestTracker>();
+    state->serve_pieces = verify_complete;
 
     server->onClient(
         [state](std::shared_ptr<rtc::WebSocket> ws)
@@ -168,11 +199,96 @@ TEST_F(WebTorrentEndToEndTest, BrowserStylePeerCompletesBitTorrentHandshake)
                                     }
                                 });
                             channel->onMessage(
-                                [state](rtc::binary message)
+                                [state, weak](rtc::binary message)
                                 {
-                                    if (message.size() >= 68U && message.front() == std::byte{ 19 })
+                                    auto replies = std::vector<rtc::binary>{};
                                     {
-                                        state->got_handshake = true;
+                                        auto guard = std::lock_guard{ state->mutex };
+                                        state->received.insert(
+                                            state->received.end(), message.begin(), message.end());
+
+                                        if (!state->handshake_read && state->received.size() >= 68U)
+                                        {
+                                            if (state->received.front() != std::byte{ 19 })
+                                            {
+                                                return;
+                                            }
+                                            state->handshake_read = true;
+                                            state->got_handshake = true;
+                                            state->received.erase(state->received.begin(), state->received.begin() + 68);
+
+                                            if (state->serve_pieces)
+                                            {
+                                                auto const count = state->piece_count.load();
+                                                auto const n = (count + 7U) / 8U;
+                                                auto bits = rtc::binary{};
+                                                append_u32(bits, 1U + n);
+                                                bits.push_back(std::byte{ 5 });
+                                                bits.resize(bits.size() + n, std::byte{ 0 });
+                                                for (uint32_t i = 0; i < count; ++i)
+                                                {
+                                                    bits[5U + i / 8U] |=
+                                                        std::byte{ static_cast<unsigned char>(0x80U >> (i % 8U)) };
+                                                }
+                                                replies.emplace_back(std::move(bits));
+                                            }
+                                        }
+
+                                        // A DataChannel message is not a BitTorrent frame boundary:
+                                        // reassemble the handshake and subsequent length-prefixed messages.
+                                        while (state->handshake_read && state->received.size() >= 4U)
+                                        {
+                                            auto const frame_size = read_u32(state->received, 0U);
+                                            if (frame_size > 1024U * 1024U ||
+                                                state->received.size() < 4U + frame_size)
+                                            {
+                                                break;
+                                            }
+
+                                            if (state->serve_pieces && frame_size > 0U)
+                                            {
+                                                auto const message_id = std::to_integer<unsigned char>(state->received[4U]);
+                                                if (message_id == 2U)
+                                                {
+                                                    // Remote client is interested: allow piece requests.
+                                                    auto unchoke = rtc::binary{};
+                                                    append_u32(unchoke, 1U);
+                                                    unchoke.push_back(std::byte{ 1 });
+                                                    replies.emplace_back(std::move(unchoke));
+                                                }
+                                                else if (message_id == 6U && frame_size == 13U)
+                                                {
+                                                    auto const index = read_u32(state->received, 5U);
+                                                    auto const begin = read_u32(state->received, 9U);
+                                                    auto const length = read_u32(state->received, 13U);
+                                                    auto const absolute = uint64_t{ index } * 32768U + begin;
+                                                    if (index < state->piece_count.load() &&
+                                                        length > 0U && length <= 16384U &&
+                                                        uint64_t{ absolute } + length <= state->total_size.load())
+                                                    {
+                                                        auto block = rtc::binary{};
+                                                        append_u32(block, 9U + length);
+                                                        block.push_back(std::byte{ 7 });
+                                                        append_u32(block, index);
+                                                        append_u32(block, begin);
+                                                        block.resize(block.size() + length, std::byte{ 0 });
+                                                        replies.emplace_back(std::move(block));
+                                                        state->served_bytes += length;
+                                                    }
+                                                }
+                                            }
+                                            state->received.erase(
+                                                state->received.begin(),
+                                                state->received.begin() + 4U + frame_size);
+                                        }
+                                    }
+
+                                    if (auto dc = weak.lock())
+                                    {
+                                        for (auto& response : replies)
+                                        {
+                                            dc->send(std::move(response));
+                                        }
                                     }
                                 },
                                 [](std::string) {});
@@ -209,6 +325,8 @@ TEST_F(WebTorrentEndToEndTest, BrowserStylePeerCompletesBitTorrentHandshake)
 
     auto* const tor = zeroTorrentInit(ZeroTorrentState::NoFiles);
     ASSERT_NE(tor, nullptr);
+    state->piece_count = tor->piece_count();
+    state->total_size = tor->total_size();
     auto local_tracker = tr_announce_list{};
     ASSERT_TRUE(local_tracker.add("ws://127.0.0.1:" + std::to_string(server->port()) + "/"));
     ASSERT_TRUE(tor->set_announce_list(std::move(local_tracker)));
@@ -217,6 +335,14 @@ TEST_F(WebTorrentEndToEndTest, BrowserStylePeerCompletesBitTorrentHandshake)
     EXPECT_TRUE(tr::test::waitFor([state] { return state->saw_announce.load(); }, 15000));
     EXPECT_TRUE(tr::test::waitFor([state] { return state->got_handshake.load(); }, 25000))
         << "A WebRTC answer was accepted, but the BitTorrent handshake did not complete";
+
+    if (verify_complete)
+    {
+        EXPECT_TRUE(tr::test::waitFor([tor] { return tr_torrentStat(tor).percentDone >= 1.0; }, 60000))
+            << "WebRTC peer exchanged the handshake but failed to deliver a verified torrent";
+        EXPECT_GE(state->served_bytes.load(), state->total_size.load())
+            << "The local browser-style peer did not serve the full payload";
+    }
 
     tr_torrentStop(tor);
     server->onClient(nullptr);
@@ -242,4 +368,14 @@ TEST_F(WebTorrentEndToEndTest, BrowserStylePeerCompletesBitTorrentHandshake)
         state->sockets.clear();
     }
     server->stop();
+}
+
+TEST_F(WebTorrentEndToEndTest, BrowserStylePeerCompletesBitTorrentHandshake)
+{
+    exercise(false);
+}
+
+TEST_F(WebTorrentEndToEndTest, BrowserStylePeerDownloadsAndVerifiesTorrent)
+{
+    exercise(true);
 }
