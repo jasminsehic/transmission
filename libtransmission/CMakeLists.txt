@@ -107,6 +107,8 @@ target_sources(${TR_NAME}
         peer-socket-utp.h
         peer-socket.cc
         peer-socket.h
+        $<$<BOOL:${ENABLE_WEBTORRENT}>:announcer-ws.cc>
+        $<$<BOOL:${ENABLE_WEBTORRENT}>:announcer-ws.h>
         $<$<BOOL:${ENABLE_WEBTORRENT}>:webtorrent-protocol.cc>
         $<$<BOOL:${ENABLE_WEBTORRENT}>:webtorrent-protocol.h>
         $<$<BOOL:${ENABLE_WEBTORRENT}>:peer-socket-rtc.cc>
