@@ -87,3 +87,31 @@ jobs:
       - name: Run WebRTC integration tests
         shell: pwsh
         run: ctest --test-dir build-wt -C RelWithDebInfo --output-on-failure -R 'LT\.(WebTorrent|PeerSocketRtc)'
+
+  webrtc-macos:
+    runs-on: macos-26
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/install-deps
+        with:
+          compiler: system-default
+      - name: Configure WebRTC build
+        run: |
+          cmake -S . -B build-wt -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
+            -DENABLE_WEBTORRENT=ON -DENABLE_TESTS=ON \
+            -DENABLE_GTK=OFF -DENABLE_QT=OFF -DENABLE_MAC=OFF \
+            -DENABLE_CLI=OFF -DENABLE_DAEMON=ON \
+            -DREBUILD_WEB=OFF -DRUN_CLANG_TIDY=OFF \
+            -DUSE_SYSTEM_DEFAULT=ON \
+            -DUSE_SYSTEM_DHT=OFF -DUSE_SYSTEM_SIGSLOT=OFF \
+            -DUSE_SYSTEM_SMALL=OFF -DUSE_SYSTEM_UTP=OFF \
+            -DUSE_SYSTEM_WIDE_INTEGER=OFF
+      - name: Build tests and daemon
+        run: cmake --build build-wt --target libtransmission-test transmission-daemon -j 3
+      - name: Run WebRTC integration tests
+        run: ctest --test-dir build-wt --output-on-failure -R 'LT\.(WebTorrent|PeerSocketRtc)'
