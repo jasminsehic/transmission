@@ -1,0 +1,44 @@
+name: WebTorrent feature (Linux)
+
+on:
+  push:
+    branches:
+      - 'feature/webtorrent-*'
+  pull_request:
+    paths:
+      - 'libtransmission/peer-socket-rtc.*'
+      - 'libtransmission/announcer-ws.*'
+      - 'libtransmission/webtorrent-*.cc'
+      - 'libtransmission/webtorrent-*.h'
+      - '.github/workflows/webtorrent.yml'
+  workflow_dispatch:
+
+jobs:
+  webrtc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/install-deps
+        with:
+          compiler: clang
+          use-sudo: true
+      - name: Configure WebRTC build
+        run: |
+          cmake -S . -B build-wt -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DENABLE_WEBTORRENT=ON -DENABLE_TESTS=ON \
+            -DENABLE_GTK=OFF -DENABLE_QT=OFF -DENABLE_MAC=OFF \
+            -DENABLE_CLI=OFF -DENABLE_DAEMON=ON \
+            -DREBUILD_WEB=OFF -DRUN_CLANG_TIDY=OFF \
+            -DUSE_SYSTEM_DEFAULT=ON \
+            -DUSE_SYSTEM_DHT=OFF -DUSE_SYSTEM_SIGSLOT=OFF \
+            -DUSE_SYSTEM_SMALL=OFF -DUSE_SYSTEM_UTP=OFF \
+            -DUSE_SYSTEM_WIDE_INTEGER=OFF
+      - name: Build tests and daemon
+        run: cmake --build build-wt --target libtransmission-test transmission-daemon -j 3
+      - name: Run libtransmission tests
+        run: ctest --test-dir build-wt --output-on-failure -R 'LT\.'
