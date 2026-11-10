@@ -2,7 +2,9 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <vector>
 
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
@@ -77,9 +79,15 @@ TEST_F(WebTorrentAnnouncerEnabledTest, AnnounceOverLocalWebSocket)
         expected_hash + R"(","interval":125,"complete":2,"incomplete":1})";
 
     auto seen = std::atomic<int>{ 0 };
+    auto clients = std::vector<std::shared_ptr<rtc::WebSocket>>{};
+    auto client_mutex = std::mutex{};
     server->onClient(
         [&](std::shared_ptr<rtc::WebSocket> socket)
         {
+            {
+                auto guard = std::lock_guard{ client_mutex };
+                clients.emplace_back(socket);
+            }
             auto weak = std::weak_ptr<rtc::WebSocket>{ socket };
             socket->onMessage(
                 [](rtc::binary) {},
@@ -125,5 +133,15 @@ TEST_F(WebTorrentAnnouncerEnabledTest, AnnounceOverLocalWebSocket)
     EXPECT_EQ(seen.load(), 1);
 
     session_->run_in_session_thread([&] { announcer.upkeep(); });
+    server->onClient(nullptr);
+    {
+        auto guard = std::lock_guard{ client_mutex };
+        for (auto& socket : clients)
+        {
+            socket->onMessage(nullptr);
+            socket->close();
+        }
+        clients.clear();
+    }
     server->stop();
 }
