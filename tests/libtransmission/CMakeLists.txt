@@ -101,7 +101,7 @@ target_link_libraries(libtransmission-test
         transmission::fmt-header-only
         libevent::core
         WideInteger::WideInteger
-        $<$<BOOL:${ENABLE_WEBTORRENT}>:LibDataChannel::LibDataChannel>
+        $<$<BOOL:${ENABLE_WEBTORRENT}>:${TR_WEBTORRENT_DATACHANNEL_TARGET}>
         $<$<BOOL:${ENABLE_WEBTORRENT}>:RapidJSON>)
 
 tr_setup_gtest_target(libtransmission-test "LT.")
