@@ -28,6 +28,7 @@
 #include "libtransmission/log.h"
 #include "libtransmission/session.h"
 #include "libtransmission/webtorrent-protocol.h"
+#include "libtransmission/webtorrent-signaling.h"
 
 using namespace std::chrono_literals;
 
@@ -54,6 +55,20 @@ tr_announce_response response_from(tr_announce_request const& request, bool cons
 
 constexpr auto ResponseTimeout = 25s;
 constexpr auto MaxPendingPerSocket = size_t{ 64 };
+
+std::string announce_payload(tr_announce_request const& request, std::vector<tr_webtorrent::Offer> offers)
+{
+    auto payload = tr_webtorrent::Announce{};
+    payload.info_hash = hash_key(request.info_hash);
+    payload.peer_id = peer_key(request.peer_id);
+    payload.event = tr_announce_event_get_string(request.event);
+    payload.uploaded = request.up;
+    payload.downloaded = request.down;
+    payload.left = request.leftUntilComplete;
+    payload.numwant = static_cast<int64_t>(offers.size());
+    payload.offers = std::move(offers);
+    return tr_webtorrent::encode_announce(payload);
+}
 } // namespace
 
 struct tr_announcer_ws::State : std::enable_shared_from_this<State>
@@ -185,7 +200,65 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                 pending.callback(response_from(pending.request, false, "Too many pending WebSocket announces"));
                 return;
             }
+            // Prepare complete, non-trickle ICE descriptions before announcing.
+            // A WebTorrent offer without gathered candidates cannot connect.
+            if (pending.request.event != TR_ANNOUNCE_EVENT_STOPPED &&
+                pending.request.numwant > 0)
+            {
+                auto const parent = owner.lock();
+                if (!parent)
+                {
+                    pending.callback(response_from(pending.request, false, "WebTorrent signaling unavailable"));
+                    return;
+                }
+                auto const shared = std::make_shared<Pending>(std::move(pending));
+                auto const weak = weak_from_this();
+                parent->signaling->make_offers(
+                    shared->request.info_hash,
+                    url,
+                    static_cast<size_t>(std::min<int64_t>(shared->request.numwant, 4)),
+                    [weak, shared](std::vector<tr_webtorrent::Offer> offers)
+                    {
+                        if (auto connection = weak.lock(); connection && !connection->closed)
+                        {
+                            shared->payload = announce_payload(shared->request, std::move(offers));
+                            shared->deadline = std::chrono::steady_clock::now() + ResponseTimeout;
+                            connection->enqueue(std::move(*shared));
+                        }
+                        else
+                        {
+                            shared->callback(response_from(shared->request, false, "WebSocket closed before ICE gathering"));
+                        }
+                    });
+            }
+            else
+            {
+                enqueue(std::move(pending));
+            }
+        }
+
+        void enqueue(Pending pending)
+        {
+            auto const hash = hash_key(pending.request.info_hash);
+            if (pending.request.event == TR_ANNOUNCE_EVENT_STOPPED)
+            {
+                registrations.erase(hash);
+            }
+            else
+            {
+                registrations[hash] = peer_key(pending.request.peer_id);
+            }
             waiting.emplace_back(std::move(pending));
+            flush();
+        }
+
+        void send_answer(std::string payload)
+        {
+            if (closed || answer_queue.size() >= MaxPendingPerSocket)
+            {
+                return;
+            }
+            answer_queue.emplace_back(std::move(payload));
             flush();
         }
 
@@ -216,6 +289,24 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                 return;
             }
 
+            while (!answer_queue.empty())
+            {
+                bool accepted = false;
+                try
+                {
+                    accepted = ws->send(answer_queue.front());
+                }
+                catch (std::exception const& e)
+                {
+                    on_closed(e.what());
+                    return;
+                }
+                if (!accepted)
+                {
+                    return;
+                }
+                answer_queue.pop_front();
+            }
             while (!waiting.empty())
             {
                 auto& pending = waiting.front();
@@ -258,10 +349,28 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
             {
                 return;
             }
-            if (signal->kind != tr_webtorrent::Signal::Kind::Counts &&
-                signal->kind != tr_webtorrent::Signal::Kind::Failure)
+            if (signal->kind == tr_webtorrent::Signal::Kind::Offer ||
+                signal->kind == tr_webtorrent::Signal::Kind::Answer)
             {
-                // SDP events are handled by the separate orchestration stage.
+                auto const reg = registrations.find(signal->info_hash);
+                if (reg != registrations.end())
+                {
+                    if (auto const parent = owner.lock())
+                    {
+                        auto const weak = weak_from_this();
+                        parent->signaling->on_signal(
+                            *signal,
+                            url,
+                            reg->second,
+                            [weak](std::string answer)
+                            {
+                                if (auto connection = weak.lock())
+                                {
+                                    connection->send_answer(std::move(answer));
+                                }
+                            });
+                    }
+                }
                 return;
             }
             auto it = in_flight.find(signal->info_hash);
@@ -358,6 +467,8 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                 }
             }
             in_flight.clear();
+            answer_queue.clear();
+            registrations.clear();
             for (auto& pending : failed)
             {
                 pending.callback(response_from(pending.request, false, reason));
@@ -379,14 +490,18 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
         bool closed = false;
         std::deque<Pending> waiting;
         std::map<std::string, std::deque<Pending>> in_flight;
+        std::map<std::string, std::string> registrations;
+        std::deque<std::string> answer_queue;
     };
 
     explicit State(tr_session* value)
         : session{ value }
+        , signaling{ std::make_unique<tr_webtorrent_signaling>(value) }
     {
     }
 
     tr_session* const session;
+    std::unique_ptr<tr_webtorrent_signaling> signaling;
     std::atomic<bool> closing = false;
     std::map<std::string, std::shared_ptr<Connection>> connections;
 };
@@ -404,20 +519,10 @@ tr_announcer_ws::~tr_announcer_ws()
 
 void tr_announcer_ws::announce(tr_announce_request const& request, tr_announce_response_func on_response)
 {
-    auto payload = tr_webtorrent::Announce{};
-    payload.info_hash = hash_key(request.info_hash);
-    payload.peer_id = peer_key(request.peer_id);
-    payload.event = tr_announce_event_get_string(request.event);
-    payload.uploaded = request.up;
-    payload.downloaded = request.down;
-    payload.left = request.leftUntilComplete;
-    // Limit WebTorrent offer requests until actual SDP offers are available.
-    payload.numwant = 0;
-
     auto pending = State::Pending{
         request,
         std::move(on_response),
-        tr_webtorrent::encode_announce(payload),
+        announce_payload(request, {}),
         std::chrono::steady_clock::now() + ResponseTimeout,
     };
     auto const url = std::string{ request.announce_url.sv() };
@@ -447,4 +552,5 @@ void tr_announcer_ws::upkeep()
     {
         connection->fail_expired(now);
     }
+    state_->signaling->upkeep();
 }

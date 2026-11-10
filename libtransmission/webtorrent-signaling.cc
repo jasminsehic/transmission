@@ -92,7 +92,6 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
         auto const host_a = (id >> 8U) & 0xFFU;
         auto const host_b = id & 0xFFU;
         auto const port = 1024U + (id % 64000U);
-        auto const addr = fmt::format("198.18.{}:{}:{}", host_a, host_b, port);
         // IPv4 dotted address must contain four octets (198.18.a.b).
         return *tr_socket_address::from_string(fmt::format("198.18.{}.{}:{}", host_a, host_b, port));
     }
