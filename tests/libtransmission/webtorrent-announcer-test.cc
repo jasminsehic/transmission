@@ -4,6 +4,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -239,6 +240,109 @@ TEST_F(WebTorrentAnnouncerEnabledTest, ReconnectsAfterTrackerCloses)
     EXPECT_EQ(replies.load(), 1);
 
     session_->run_in_session_thread([&] { announcer.upkeep(); });
+    server->onClient(nullptr);
+    {
+        auto guard = std::lock_guard{ client_mutex };
+        for (auto& socket : clients)
+        {
+            socket->onMessage(nullptr);
+            socket->close();
+        }
+        clients.clear();
+    }
+    server->stop();
+}
+
+TEST_F(WebTorrentAnnouncerEnabledTest, TimedOutAnnounceReopensTrackerConnection)
+{
+    auto config = rtc::WebSocketServer::Configuration{};
+    config.port = 0;
+    config.bindAddress = "127.0.0.1";
+    auto server = std::make_shared<rtc::WebSocketServer>(config);
+
+    auto const expected_hash = std::string(20, 'A');
+    auto const response = std::string{ R"({"action":"announce","info_hash":")" } +
+        expected_hash + R"(","interval":125,"complete":3,"incomplete":1})";
+    auto connections = std::atomic<int>{ 0 };
+    auto announces = std::atomic<int>{ 0 };
+    auto clients = std::vector<std::shared_ptr<rtc::WebSocket>>{};
+    auto client_mutex = std::mutex{};
+    server->onClient(
+        [&](std::shared_ptr<rtc::WebSocket> socket)
+        {
+            auto const connection_number = ++connections;
+            {
+                auto guard = std::lock_guard{ client_mutex };
+                clients.emplace_back(socket);
+            }
+            auto weak = std::weak_ptr<rtc::WebSocket>{ socket };
+            socket->onMessage(
+                [](rtc::binary) {},
+                [weak, connection_number, &announces, response](std::string message)
+                {
+                    if (message.find(R"("action":"announce")") == std::string::npos)
+                    {
+                        return;
+                    }
+                    ++announces;
+                    if (connection_number > 1)
+                    {
+                        if (auto ws = weak.lock())
+                        {
+                            ws->send(response);
+                        }
+                    }
+                    // Leave the first connection open without ever replying.
+                });
+        });
+
+    auto announcer = tr_announcer_ws{ session_ };
+    auto request = tr_announce_request{};
+    request.info_hash.fill(std::byte{ 'A' });
+    request.peer_id.fill('B');
+    request.announce_url = tr_interned_string{ "ws://127.0.0.1:" + std::to_string(server->port()) };
+    request.numwant = 0;
+
+    auto first_done = std::atomic<bool>{ false };
+    auto first_timed_out = std::atomic<bool>{ false };
+    auto second_done = std::atomic<bool>{ false };
+    auto second_succeeded = std::atomic<bool>{ false };
+    session_->run_in_session_thread(
+        [&]
+        {
+            announcer.announce(
+                request,
+                [&](tr_announce_response const& answer)
+                {
+                    first_timed_out = answer.did_timeout;
+                    first_done = true;
+                });
+        });
+
+    ASSERT_TRUE(tr::test::waitFor([&] { return announces.load() == 1; }, 12000));
+    // This standalone announcer is not registered with the session's upkeep.
+    std::this_thread::sleep_for(26s);
+    session_->run_in_session_thread([&] { announcer.upkeep(); });
+    ASSERT_TRUE(tr::test::waitFor([&] { return first_done.load(); }, 2000));
+    EXPECT_TRUE(first_timed_out);
+
+    session_->run_in_session_thread(
+        [&]
+        {
+            announcer.announce(
+                request,
+                [&](tr_announce_response const& answer)
+                {
+                    second_succeeded = answer.did_connect && answer.errmsg.empty() &&
+                        answer.seeders.value_or(-1) == 3;
+                    second_done = true;
+                });
+        });
+    ASSERT_TRUE(tr::test::waitFor([&] { return second_done.load(); }, 12000));
+    EXPECT_TRUE(second_succeeded);
+    EXPECT_EQ(connections.load(), 2);
+    EXPECT_EQ(announces.load(), 2);
+
     server->onClient(nullptr);
     {
         auto guard = std::lock_guard{ client_mutex };

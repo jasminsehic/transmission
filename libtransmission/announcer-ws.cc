@@ -432,15 +432,17 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                     ++it;
                 }
             }
+            if (!expired.empty())
+            {
+                // A tracker response has no request ID, so a late response
+                // must not be delivered to a newer announce on this socket.
+                on_closed("WebSocket announce response timed out");
+            }
             for (auto& pending : expired)
             {
                 auto response = response_from(pending.request, true, "WebSocket announce response timed out");
                 response.did_timeout = true;
                 pending.callback(response);
-            }
-            if (!expired.empty() && !ready)
-            {
-                on_closed("WebSocket connection timed out");
             }
         }
 
