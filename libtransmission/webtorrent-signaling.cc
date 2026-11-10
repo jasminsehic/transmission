@@ -124,7 +124,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             , tracker_url{ std::move(tracker) }
             , info_hash{ std::move(hash) }
             , incoming{ is_incoming }
-            , pc{ std::make_shared<rtc::PeerConnection>(ice_config()) }
+            , pc{ std::make_shared<rtc::PeerConnection>(ice_config(parent->session)) }
             , created{ std::chrono::steady_clock::now() }
         {
         }
@@ -146,10 +146,16 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             }
         }
 
-        static rtc::Configuration ice_config()
+        static rtc::Configuration ice_config(tr_session const* session)
         {
             auto config = rtc::Configuration{};
-            config.iceServers.emplace_back("stun:stun.l.google.com:19302");
+            for (auto const& server : session->settings().webtorrent_ice_servers)
+            {
+                if (server.starts_with("stun:") || server.starts_with("turn:") || server.starts_with("turns:"))
+                {
+                    config.iceServers.emplace_back(server);
+                }
+            }
             return config;
         }
 

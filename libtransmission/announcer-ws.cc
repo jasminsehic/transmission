@@ -519,6 +519,20 @@ tr_announcer_ws::~tr_announcer_ws()
 
 void tr_announcer_ws::announce(tr_announce_request const& request, tr_announce_response_func on_response)
 {
+    if (!state_->session->settings().webtorrent_enabled)
+    {
+        on_response(response_from(request, false, "WebTorrent support is disabled in session settings"));
+        return;
+    }
+    // libdatachannel WebSocket sessions are direct unless explicitly configured
+    // with a compatible proxy. Fail closed instead of silently bypassing an
+    // existing Transmission proxy policy.
+    if (state_->session->settings().proxy_url)
+    {
+        on_response(response_from(request, false, "WebTorrent WebSocket proxy support is unavailable"));
+        return;
+    }
+
     auto pending = State::Pending{
         request,
         std::move(on_response),
