@@ -308,8 +308,8 @@ public:
         tr_peer_id_t peer_id,
         tr_peer_callback_bt callback,
         void* callback_data)
-        : tr_peerMsgs{ torrent_in,           std::move(peer_info_in), peer_id, io_in->is_encrypted(),
-                       io_in->is_incoming(), io_in->is_utp() }
+        : tr_peerMsgs{ torrent_in,           std::move(peer_info_in), peer_id, io_in->is_encrypted() || io_in->is_rtc(),
+                       io_in->is_incoming(), io_in->is_utp(), io_in->is_rtc() }
         , tor_{ torrent_in }
         , io_{ std::move(io_in) }
         , have_{ torrent_in.piece_count() }
@@ -660,7 +660,7 @@ private:
     [[nodiscard]] constexpr bool can_send_ut_pex() const noexcept
     {
         // only send pex if both the torrent and peer support it
-        return tor_.allows_pex() && ut_pex_id_ != 0U;
+        return tor_.allows_pex() && !is_rtc_connection() && ut_pex_id_ != 0U;
     }
 
     void send_ut_pex();
@@ -1225,7 +1225,7 @@ void tr_peerMsgsImpl::send_ltep_handshake()
     bool const allow_metadata_xfer = tor_.is_public();
 
     /* decide if we want to advertise pex support */
-    bool const allow_pex = tor_.allows_pex();
+    bool const allow_pex = tor_.allows_pex() && !is_rtc_connection();
 
     /* decide if we want to advertise holepunch support (bep 55) */
     bool const allow_holepunch = tor_.allows_holepunch();
@@ -2325,13 +2325,15 @@ tr_peerMsgs::tr_peerMsgs(
     tr_peer_id_t peer_id,
     bool connection_is_encrypted,
     bool connection_is_incoming,
-    bool connection_is_utp)
+    bool connection_is_utp,
+    bool connection_is_rtc)
     : tr_peer{ tor }
     , peer_info{ std::move(peer_info_in) }
     , peer_id_{ peer_id }
     , connection_is_encrypted_{ connection_is_encrypted }
     , connection_is_incoming_{ connection_is_incoming }
     , connection_is_utp_{ connection_is_utp }
+    , connection_is_rtc_{ connection_is_rtc }
 {
     auto client = tr_interned_string{};
     if (peer_id != tr_peer_id_t{})

@@ -1658,12 +1658,13 @@ void tr_peerMgrAddIncoming(tr_peerMgr* manager, std::shared_ptr<tr_peer_socket> 
     else if (!manager->incoming_handshakes.contains(socket->socket_address())) // we don't have a connection to them yet...
     {
         auto const& socket_address = socket->socket_address();
+        auto const is_rtc = socket->is_rtc();
         auto* const session = manager->session;
         manager->incoming_handshakes.try_emplace(
             socket_address,
             &manager->handshake_mediator_,
             tr_peerIo::new_incoming(session, &session->top_bandwidth_, std::move(socket)),
-            session->encryptionMode(),
+            is_rtc ? TR_CLEAR_PREFERRED : session->encryptionMode(),
             [manager](tr_handshake::Result const& result) { return on_handshake_done(manager, result); });
     }
 }
@@ -1794,7 +1795,9 @@ std::vector<tr_pex> tr_peerMgrGetPeers(tr_torrent const* tor, uint8_t address_ty
         infos.reserve(std::size(peers));
         for (auto const& peer : peers)
         {
-            if (peer->socket_address().address().type == address_type)
+            // WebRTC's internal socket addresses are not dialable by TCP/µTP peers.
+            // Never advertise them via compact PEX.
+            if (!peer->is_rtc_connection() && peer->socket_address().address().type == address_type)
             {
                 infos.emplace_back(peer->peer_info.get());
             }

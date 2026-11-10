@@ -143,11 +143,11 @@ public:
             if (has_data)
             {
                 dispatch(
-                    [this]()
+                    [weak_self = weak_from_this()]()
                     {
-                        if (is_read_enabled())
+                        if (auto self = weak_self.lock(); self && self->is_read_enabled())
                         {
-                            read_cb();
+                            self->read_cb();
                         }
                     });
             }
@@ -195,11 +195,11 @@ private:
         }
 
         dispatch(
-            [this]()
+            [weak_self = weak_from_this()]()
             {
-                if (is_read_enabled())
+                if (auto self = weak_self.lock(); self && self->is_read_enabled())
                 {
-                    read_cb();
+                    self->read_cb();
                 }
             });
     }
@@ -207,11 +207,11 @@ private:
     void on_buffered_amount_low()
     {
         dispatch(
-            [this]()
+            [weak_self = weak_from_this()]()
             {
-                if (is_write_enabled())
+                if (auto self = weak_self.lock(); self && self->is_write_enabled())
                 {
-                    write_cb();
+                    self->write_cb();
                 }
             });
     }
@@ -220,11 +220,14 @@ private:
     {
         is_closed_ = true;
         dispatch(
-            [this]()
+            [weak_self = weak_from_this()]()
             {
-                auto error = tr_error{};
-                error.set_from_errno(ENOTCONN);
-                error_cb(error);
+                if (auto self = weak_self.lock())
+                {
+                    auto error = tr_error{};
+                    error.set_from_errno(ENOTCONN);
+                    self->error_cb(error);
+                }
             });
     }
 
@@ -232,11 +235,14 @@ private:
     {
         is_closed_ = true;
         dispatch(
-            [this, msg = std::move(message)]()
+            [weak_self = weak_from_this(), msg = std::move(message)]()
             {
-                auto error = tr_error{};
-                error.set(EIO, msg);
-                error_cb(error);
+                if (auto self = weak_self.lock())
+                {
+                    auto error = tr_error{};
+                    error.set(EIO, msg);
+                    self->error_cb(error);
+                }
             });
     }
 
