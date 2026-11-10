@@ -399,6 +399,7 @@ void tr_webtorrent_signaling::make_offers(
 
     for (size_t i = 0; i < count; ++i)
     {
+        auto peer = std::shared_ptr<State::Peer>{};
         try
         {
             auto id = new_offer_id();
@@ -406,13 +407,17 @@ void tr_webtorrent_signaling::make_offers(
             {
                 id = new_offer_id();
             }
-            auto peer = std::make_shared<State::Peer>(state_, id, tracker_url, hash_str, false);
+            peer = std::make_shared<State::Peer>(state_, id, tracker_url, hash_str, false);
             state_->peers.emplace(peer->id, peer);
             peer->init();
             peer->start_outgoing(batch);
         }
         catch (std::exception const&)
         {
+            if (peer)
+            {
+                peer->remove();
+            }
             if (batch->remaining != 0)
             {
                 --batch->remaining;
@@ -456,6 +461,7 @@ void tr_webtorrent_signaling::on_signal(
         return;
     }
 
+    auto peer = std::shared_ptr<State::Peer>{};
     try
     {
         auto id = new_offer_id();
@@ -463,14 +469,18 @@ void tr_webtorrent_signaling::on_signal(
         {
             id = new_offer_id();
         }
-        auto peer = std::make_shared<State::Peer>(state_, id, tracker_url, signal.info_hash, true);
+        peer = std::make_shared<State::Peer>(state_, id, tracker_url, signal.info_hash, true);
         state_->peers.emplace(peer->id, peer);
         peer->init();
         peer->start_incoming(signal, our_peer_id, std::move(send_answer));
     }
     catch (std::exception const&)
     {
-        // Remote SDP may be malformed. Never report it or retain a bad peer.
+        // A rejected SDP must not occupy a pending peer slot.
+        if (peer)
+        {
+            peer->remove();
+        }
     }
 }
 
