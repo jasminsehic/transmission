@@ -24,6 +24,7 @@
 #include "libtransmission/quark.h"
 #include "libtransmission/session.h"
 #include "libtransmission/webtorrent-protocol.h"
+#include "libtransmission/webtorrent-signaling.h"
 
 #include "test-fixtures.h"
 
@@ -446,4 +447,44 @@ TEST_F(WebTorrentAnnouncerEnabledTest, ReentrantRetryAfterDisconnectUsesNewConne
         clients.clear();
     }
     server->stop();
+}
+
+TEST_F(WebTorrentAnnouncerEnabledTest, InvalidIncomingOffersDoNotExhaustPeerCapacity)
+{
+    auto signaling = tr_webtorrent_signaling{ session_ };
+    auto invalid = tr_webtorrent::Signal{};
+    invalid.kind = tr_webtorrent::Signal::Kind::Offer;
+    invalid.info_hash = std::string(20, 'A');
+    invalid.peer_id = std::string(20, 'B');
+    invalid.offer_id = std::string(20, 'C');
+    invalid.sdp = "not a valid WebRTC SDP";
+
+    auto const tracker_url = std::string{ "ws://127.0.0.1:9000" };
+    auto const our_peer_id = std::string(20, 'D');
+    auto hash = tr_sha1_digest_t{};
+    hash.fill(std::byte{ 'A' });
+    auto offered = std::atomic<int>{ -1 };
+
+    session_->run_in_session_thread(
+        [&]
+        {
+            // More than the 128 outstanding-peer limit. Each malformed
+            // description must release its allocation before the next offer.
+            for (int i = 0; i < 130; ++i)
+            {
+                signaling.on_signal(invalid, tracker_url, our_peer_id, [](std::string) {});
+            }
+            signaling.make_offers(
+                hash,
+                tracker_url,
+                1,
+                [&](std::vector<tr_webtorrent::Offer> offers)
+                {
+                    offered = static_cast<int>(offers.size());
+                });
+        });
+
+    ASSERT_TRUE(tr::test::waitFor([&] { return offered.load() >= 0; }, 20000));
+    EXPECT_EQ(offered.load(), 1)
+        << "Malformed incoming offers must not exhaust WebRTC peer capacity";
 }
