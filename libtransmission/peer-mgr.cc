@@ -1987,6 +1987,7 @@ namespace peer_stat_helpers
     stats.from = peer->peer_info->from_first();
     stats.progress = peer->percent_done();
     stats.is_utp = peer->is_utp_connection();
+    stats.is_web_rtc = peer->is_rtc_connection();
     stats.is_encrypted = peer->is_encrypted();
     stats.rate_to_peer = peer->get_piece_speed(now_msec, tr_direction::ClientToPeer);
     stats.rate_to_client = peer->get_piece_speed(now_msec, tr_direction::PeerToClient);
@@ -2017,6 +2018,10 @@ namespace peer_stat_helpers
     if (stats.is_utp)
     {
         stats.flag_str.push_back('T');
+    }
+    if (stats.is_web_rtc)
+    {
+        stats.flag_str.push_back('W');
     }
 
     if (peer->swarm->optimistic == peer)
