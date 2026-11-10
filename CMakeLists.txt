@@ -596,6 +596,15 @@ if(ENABLE_WEBTORRENT)
         GIT_SHALLOW TRUE
     )
     FetchContent_MakeAvailable(libdatachannel)
+
+    # On Windows, libdatachannel's DLL exports STL template instantiations
+    # which conflict with Transmission's static library at link time.
+    # Its static target also exposes RTC_STATIC to consumers.
+    if(WIN32)
+        set(TR_WEBTORRENT_DATACHANNEL_TARGET LibDataChannel::LibDataChannelStatic)
+    else()
+        set(TR_WEBTORRENT_DATACHANNEL_TARGET LibDataChannel::LibDataChannel)
+    endif()
 endif()
 
 tr_add_external_auto_library(B64 libb64
