@@ -1,6 +1,8 @@
 // WebRTC signaling orchestrator: non-trickle SDP after ICE gathering completes.
 // All maps and callbacks are accessed on Transmission's session event thread.
 #include <algorithm>
+#include <array>
+#include <string_view>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
