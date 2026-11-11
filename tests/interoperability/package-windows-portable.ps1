@@ -40,7 +40,11 @@ $bin = Join-Path $root 'bin'
 New-Item -ItemType Directory -Path $configDir -Force | Out-Null
 $settingsPath = Join-Path $configDir 'settings.json'
 if (Test-Path $settingsPath) {
-    $settings = Get-Content -Raw -Path $settingsPath | ConvertFrom-Json -AsHashtable
+    $previous = Get-Content -Raw -Path $settingsPath | ConvertFrom-Json
+    $settings = @{}
+    foreach ($property in $previous.PSObject.Properties) {
+        $settings[$property.Name] = $property.Value
+    }
 } else {
     $settings = @{}
 }

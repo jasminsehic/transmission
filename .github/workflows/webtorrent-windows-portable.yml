@@ -52,7 +52,7 @@ jobs:
         shell: pwsh
         run: |
           $vc = '"' + $Env:VCVARSALL + '"'
-          cmd /c "$vc $Env:VC_ARCH >nul && cmake --build build-wt --target transmission-qt transmission-daemon transmission-remote libtransmission-test --parallel 3"
+          cmd /c "$vc $Env:VC_ARCH >nul && cmake --build build-wt --parallel 3"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run WebRTC regression tests
         shell: pwsh
