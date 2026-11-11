@@ -205,6 +205,7 @@ target_sources(${TR_NAME}-qt-lib
 if(ENABLE_QT_COM_INTEROP)
     tr_target_idl_files(${TR_NAME}-qt-lib
         transmission-qt.idl)
+    target_link_libraries(${TR_NAME}-qt-lib PRIVATE oleaut32)
 endif()
 
 target_include_directories(${TR_NAME}-qt-lib

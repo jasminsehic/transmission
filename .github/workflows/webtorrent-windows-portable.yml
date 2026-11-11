@@ -5,6 +5,7 @@ on:
     branches:
       - feature/webtorrent-stage20-windows-portable
       - feature/webtorrent-stage21-windows-gui-crash-diagnostics
+      - fix/windows-qt-com-startup-null-dereference
   workflow_dispatch:
 
 jobs:
@@ -88,7 +89,7 @@ jobs:
             Start-Sleep -Seconds 15
             $process.Refresh()
             if ($process.HasExited) {
-              throw ("Qt GUI exited during startup (ExitCode=0x{0:X8})" -f [uint32]$process.ExitCode)
+              throw ("Qt GUI exited during startup (ExitCode={0})" -f $process.ExitCode)
             }
             Write-Host "Qt GUI remains running 15s after normal startup (PID=$($process.Id))"
           }
