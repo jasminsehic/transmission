@@ -24,13 +24,27 @@ extern wchar_t qAxModuleFilename[MAX_PATH]; // NOLINT
 extern QString qAxInit(); // NOLINT
 
 ComInteropHelper::ComInteropHelper()
-    : client_{ new QAxObject{ QStringLiteral("Transmission.QtClient") } }
 {
+    // Only bind to an already-running Transmission instance. Constructing
+    // QAxObject by ProgID can start a new COM server and, on affected Qt 6
+    // builds, leaves a wrapper with no interface that crashes in isNull().
+    auto clsid = CLSID{};
+    if (FAILED(::CLSIDFromString(L"{0e2c952c-0597-491f-ba26-249d7e6fab49}", &clsid)))
+    {
+        return;
+    }
+
+    IUnknown* active = nullptr;
+    if (SUCCEEDED(::GetActiveObject(clsid, nullptr, &active)) && active != nullptr)
+    {
+        client_.reset(new QAxObject{ active });
+        active->Release();
+    }
 }
 
 bool ComInteropHelper::isConnected() const
 {
-    return !client_->isNull();
+    return client_ != nullptr;
 }
 
 QVariant ComInteropHelper::addMetainfo(QString const& metainfo) const
