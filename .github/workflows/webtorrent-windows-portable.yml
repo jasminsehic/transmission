@@ -83,12 +83,21 @@ jobs:
           $exe = Join-Path $bin 'transmission-qt.exe'
           $profile = Join-Path $env:RUNNER_TEMP 'qt-gui-smoke-profile'
           New-Item -ItemType Directory -Path $profile -Force | Out-Null
+          # Capture the crash from the clean-profile GUI startup.
+          $dumpDir = Join-Path $env:RUNNER_TEMP 'qt-gui-dumps'
+          New-Item -ItemType Directory -Path $dumpDir -Force | Out-Null
+          $werKey = 'HKCU:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\transmission-qt.exe'
+          New-Item -Path $werKey -Force | Out-Null
+          New-ItemProperty -Path $werKey -Name DumpFolder -PropertyType ExpandString -Value $dumpDir -Force | Out-Null
+          New-ItemProperty -Path $werKey -Name DumpType -PropertyType DWord -Value 2 -Force | Out-Null
+          New-ItemProperty -Path $werKey -Name DumpCount -PropertyType DWord -Value 2 -Force | Out-Null
           $process = Start-Process -FilePath $exe -ArgumentList @('--config-dir', ('"' + $profile + '"')) -WorkingDirectory $bin -PassThru
           try {
             Start-Sleep -Seconds 15
             $process.Refresh()
             if ($process.HasExited) {
-              throw ("Qt GUI exited during startup (ExitCode=0x{0:X8})" -f [uint32]$process.ExitCode)
+              $ntstatus = [long]$process.ExitCode -band 4294967295
+              throw ("Qt GUI exited during startup (ExitCode={0}, NTSTATUS=0x{1:X8})" -f $process.ExitCode, $ntstatus)
             }
             Write-Host "Qt GUI remains running 15s after normal startup (PID=$($process.Id))"
           }
@@ -116,7 +125,16 @@ jobs:
           path: ${{ runner.temp }}/Transmission-Qt-PDB/**
           if-no-files-found: warn
           retention-days: 30
+      - name: Upload Windows Qt crash dumps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Transmission-WebTorrent-Windows-x64-crash-dumps
+          path: ${{ runner.temp }}/qt-gui-dumps/**
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload portable Windows 11 build
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Transmission-WebTorrent-Windows-x64
