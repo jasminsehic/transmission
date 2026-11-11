@@ -30,6 +30,7 @@
 #include "libtransmission/peer-socket-rtc.h"
 #include "libtransmission/session.h"
 #include "libtransmission/webtorrent-signaling.h"
+#include "libtransmission/webtorrent-diagnostics.h"
 
 using namespace std::chrono_literals;
 
@@ -39,6 +40,47 @@ constexpr auto OfferLifetime = 120s;
 constexpr auto GatheringLifetime = 20s;
 constexpr auto MaxOutstandingPeers = size_t{ 128 };
 constexpr auto MaxOffersPerAnnounce = size_t{ 4 };
+
+std::string_view candidate_type_name(rtc::Candidate::Type type)
+{
+    switch (type)
+    {
+    case rtc::Candidate::Type::Host: return "host";
+    case rtc::Candidate::Type::ServerReflexive: return "srflx";
+    case rtc::Candidate::Type::PeerReflexive: return "prflx";
+    case rtc::Candidate::Type::Relayed: return "relay";
+    default: return "unknown";
+    }
+}
+
+std::string_view rtc_state_name(rtc::PeerConnection::State state)
+{
+    switch (state)
+    {
+    case rtc::PeerConnection::State::New: return "new";
+    case rtc::PeerConnection::State::Connecting: return "connecting";
+    case rtc::PeerConnection::State::Connected: return "connected";
+    case rtc::PeerConnection::State::Disconnected: return "disconnected";
+    case rtc::PeerConnection::State::Failed: return "failed";
+    case rtc::PeerConnection::State::Closed: return "closed";
+    default: return "unknown";
+    }
+}
+
+std::string_view ice_state_name(rtc::PeerConnection::IceState state)
+{
+    switch (state)
+    {
+    case rtc::PeerConnection::IceState::New: return "new";
+    case rtc::PeerConnection::IceState::Checking: return "checking";
+    case rtc::PeerConnection::IceState::Connected: return "connected";
+    case rtc::PeerConnection::IceState::Completed: return "completed";
+    case rtc::PeerConnection::IceState::Failed: return "failed";
+    case rtc::PeerConnection::IceState::Disconnected: return "disconnected";
+    case rtc::PeerConnection::IceState::Closed: return "closed";
+    default: return "unknown";
+    }
+}
 
 std::string hash_key(tr_sha1_digest_t const& hash)
 {
@@ -83,6 +125,19 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
     std::map<std::string, std::shared_ptr<Peer>> peers;
     std::vector<std::shared_ptr<Batch>> batches;
     uint32_t next_virtual_peer = 0;
+    uint64_t next_diagnostic_peer = 0;
+    uint64_t incoming_offers = 0;
+    uint64_t incoming_rejections = 0;
+    uint64_t remote_answer_rejections = 0;
+    uint64_t outgoing_creation_failures = 0;
+    uint64_t ice_failures = 0;
+    uint64_t peer_connection_failures = 0;
+    uint64_t peer_expirations = 0;
+    uint64_t connected_peers = 0;
+    uint64_t registered_channels = 0;
+    uint64_t selected_pairs = 0;
+    std::array<uint64_t, 5> gathered_candidate_types{};
+    std::chrono::steady_clock::time_point last_diagnostic_summary{};
 
     tr_socket_address allocate_address()
     {
@@ -120,6 +175,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
     {
         Peer(std::shared_ptr<State> const& parent, std::string key, std::string tracker, std::string hash, bool is_incoming)
             : owner{ parent }
+            , diagnostic_id{ ++parent->next_diagnostic_peer }
             , id{ std::move(key) }
             , tracker_url{ std::move(tracker) }
             , info_hash{ std::move(hash) }
@@ -186,26 +242,107 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             pc->onGatheringStateChange(
                 [weak](rtc::PeerConnection::GatheringState state)
                 {
-                    if (state == rtc::PeerConnection::GatheringState::Complete)
+                    if (auto peer = weak.lock())
                     {
-                        if (auto peer = weak.lock())
-                        {
-                            peer->dispatch([](Peer& p) { p.gathering_complete(); });
-                        }
+                        peer->dispatch(
+                            [state](Peer& p)
+                            {
+                                tr_logAddDebug(
+                                    fmt::format("WebRTC peer={} gathering-state={}", p.diagnostic_id,
+                                        state == rtc::PeerConnection::GatheringState::Complete ? "complete" :
+                                        state == rtc::PeerConnection::GatheringState::InProgress ? "in-progress" : "new"),
+                                    "WebTorrent");
+                                if (state == rtc::PeerConnection::GatheringState::Complete)
+                                {
+                                    p.gathering_complete();
+                                }
+                            });
+                    }
+                });
+            pc->onLocalCandidate(
+                [weak](rtc::Candidate candidate)
+                {
+                    if (auto peer = weak.lock())
+                    {
+                        peer->dispatch(
+                            [type = candidate.type()](Peer& p)
+                            {
+                                if (auto parent = p.owner.lock())
+                                {
+                                    auto const slot = static_cast<size_t>(type);
+                                    if (slot < parent->gathered_candidate_types.size())
+                                    {
+                                        ++parent->gathered_candidate_types[slot];
+                                    }
+                                    if (slot < p.candidate_type_seen.size() && !p.candidate_type_seen[slot])
+                                    {
+                                        p.candidate_type_seen[slot] = true;
+                                        tr_logAddDebug(
+                                            fmt::format("WebRTC peer={} local-candidate-type={}", p.diagnostic_id,
+                                                candidate_type_name(type)),
+                                            "WebTorrent");
+                                    }
+                                }
+                            });
+                    }
+                });
+            pc->onIceStateChange(
+                [weak](rtc::PeerConnection::IceState state)
+                {
+                    if (auto peer = weak.lock())
+                    {
+                        peer->dispatch(
+                            [state](Peer& p)
+                            {
+                                tr_logAddDebug(
+                                    fmt::format("WebRTC peer={} ice-state={}", p.diagnostic_id,
+                                        ice_state_name(state)),
+                                    "WebTorrent");
+                                if (state == rtc::PeerConnection::IceState::Connected ||
+                                    state == rtc::PeerConnection::IceState::Completed)
+                                {
+                                    p.log_selected_pair();
+                                }
+                                if (state == rtc::PeerConnection::IceState::Failed)
+                                {
+                                    if (auto parent = p.owner.lock())
+                                    {
+                                        ++parent->ice_failures;
+                                    }
+                                }
+                            });
                     }
                 });
             pc->onStateChange(
                 [weak](rtc::PeerConnection::State state)
                 {
-                    tr_logAddDebug(
-                        fmt::format("WebRTC peer connection state: {}", static_cast<int>(state)), "WebTorrent");
-                    if (state == rtc::PeerConnection::State::Failed ||
-                        state == rtc::PeerConnection::State::Closed)
+                    if (auto peer = weak.lock())
                     {
-                        if (auto peer = weak.lock())
-                        {
-                            peer->dispatch([](Peer& p) { p.remove(); });
-                        }
+                        peer->dispatch(
+                            [state](Peer& p)
+                            {
+                                tr_logAddDebug(
+                                    fmt::format("WebRTC peer={} direction={} connection-state={}", p.diagnostic_id,
+                                        p.incoming ? "incoming" : "outgoing", rtc_state_name(state)),
+                                    "WebTorrent");
+                                if (auto parent = p.owner.lock())
+                                {
+                                    if (state == rtc::PeerConnection::State::Connected)
+                                    {
+                                        ++parent->connected_peers;
+                                        p.log_selected_pair();
+                                    }
+                                    if (state == rtc::PeerConnection::State::Failed)
+                                    {
+                                        ++parent->peer_connection_failures;
+                                    }
+                                }
+                                if (state == rtc::PeerConnection::State::Failed ||
+                                    state == rtc::PeerConnection::State::Closed)
+                                {
+                                    p.remove();
+                                }
+                            });
                     }
                 });
             if (incoming)
@@ -219,6 +356,36 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                                 [dc = std::move(dc)](Peer& p) { p.attach_channel(dc); });
                         }
                     });
+            }
+        }
+
+        void log_selected_pair()
+        {
+            if (selected_pair_reported)
+            {
+                return;
+            }
+            try
+            {
+                auto local = rtc::Candidate{};
+                auto remote = rtc::Candidate{};
+                if (!pc->getSelectedCandidatePair(&local, &remote))
+                {
+                    return;
+                }
+                selected_pair_reported = true;
+                if (auto parent = owner.lock())
+                {
+                    ++parent->selected_pairs;
+                }
+                tr_logAddInfo(
+                    fmt::format("WebRTC peer={} selected-pair local={} remote={}", diagnostic_id,
+                        candidate_type_name(local.type()), candidate_type_name(remote.type())),
+                    "WebTorrent");
+            }
+            catch (std::exception const&)
+            {
+                tr_logAddDebug(fmt::format("WebRTC peer={} selected-pair unavailable", diagnostic_id), "WebTorrent");
             }
         }
 
@@ -236,13 +403,17 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             std::string our_peer,
             tr_webtorrent_signaling::SendAnswer send)
         {
-            tr_logAddDebug("WebRTC incoming offer accepted for negotiation", "WebTorrent");
+            tr_logAddDebug(fmt::format("WebRTC peer={} incoming offer processing", diagnostic_id), "WebTorrent");
             remote_offer_id = signal.offer_id;
             remote_peer_id = signal.peer_id;
             our_peer_id = std::move(our_peer);
             send_answer = std::move(send);
+            failure_stage = "remote-description";
             pc->setRemoteDescription(rtc::Description(signal.sdp, rtc::Description::Type::Offer));
+            tr_logAddDebug(fmt::format("WebRTC peer={} incoming remote description accepted", diagnostic_id), "WebTorrent");
+            failure_stage = "local-answer";
             pc->setLocalDescription(rtc::Description::Type::Answer);
+            tr_logAddDebug(fmt::format("WebRTC peer={} local answer generation started", diagnostic_id), "WebTorrent");
         }
 
         void gathering_complete()
@@ -317,7 +488,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             {
                 return;
             }
-            tr_logAddInfo("WebRTC data channel open; registering BitTorrent peer", "WebTorrent");
+            tr_logAddInfo(fmt::format("WebRTC peer={} data channel open; registering BitTorrent peer", diagnostic_id), "WebTorrent");
             attached = true;
             auto const socket_address = parent->allocate_address();
             auto const weak_state = std::weak_ptr<State>{ parent };
@@ -332,7 +503,8 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                     }
                 });
             parent->session->addIncoming(std::move(socket));
-            tr_logAddDebug("WebRTC incoming peer socket submitted to session", "WebTorrent");
+            ++parent->registered_channels;
+            tr_logAddDebug(fmt::format("WebRTC peer={} incoming peer socket submitted to session", diagnostic_id), "WebTorrent");
         }
 
         void on_answer(std::string const& sdp)
@@ -341,9 +513,9 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             {
                 return;
             }
-            answered = true;
-            tr_logAddDebug("WebRTC remote answer accepted", "WebTorrent");
             pc->setRemoteDescription(rtc::Description(sdp, rtc::Description::Type::Answer));
+            answered = true;
+            tr_logAddDebug(fmt::format("WebRTC peer={} remote answer accepted", diagnostic_id), "WebTorrent");
         }
 
         void remove()
@@ -359,6 +531,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
         }
 
         std::weak_ptr<State> owner;
+        uint64_t const diagnostic_id;
         std::string const id;
         std::string const tracker_url;
         std::string const info_hash;
@@ -374,6 +547,9 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
         bool answered = false;
         bool description_sent = false;
         bool attached = false;
+        bool selected_pair_reported = false;
+        std::array<bool, 5> candidate_type_seen{};
+        std::string_view failure_stage = "create-peer";
     };
 };
 
@@ -426,7 +602,8 @@ void tr_webtorrent_signaling::make_offers(
         }
         catch (std::exception const&)
         {
-            tr_logAddWarn("WebRTC outgoing offer creation failed", "WebTorrent");
+            ++state_->outgoing_creation_failures;
+            tr_logAddWarn("WebRTC outgoing offer creation failed; see diagnostic counters", "WebTorrent");
             if (peer)
             {
                 peer->remove();
@@ -463,7 +640,11 @@ void tr_webtorrent_signaling::on_signal(
         }
         catch (std::exception const&)
         {
-            tr_logAddWarn("WebRTC remote answer rejected", "WebTorrent");
+            ++state_->remote_answer_rejections;
+            tr_logAddWarn(
+                fmt::format("WebRTC peer={} remote answer rejected reason={}", it->second->diagnostic_id,
+                    tr_webtorrent_diagnostics::sdp_issue(signal.sdp)),
+                "WebTorrent");
             it->second->remove();
         }
         return;
@@ -475,6 +656,7 @@ void tr_webtorrent_signaling::on_signal(
         return;
     }
 
+    ++state_->incoming_offers;
     auto peer = std::shared_ptr<State::Peer>{};
     try
     {
@@ -490,7 +672,13 @@ void tr_webtorrent_signaling::on_signal(
     }
     catch (std::exception const&)
     {
-        tr_logAddWarn("WebRTC incoming offer rejected", "WebTorrent");
+        ++state_->incoming_rejections;
+        tr_logAddWarn(
+            fmt::format("WebRTC incoming offer rejected peer={} stage={} reason={}",
+                peer ? peer->diagnostic_id : 0,
+                peer ? peer->failure_stage : "create-peer",
+                tr_webtorrent_diagnostics::sdp_issue(signal.sdp)),
+            "WebTorrent");
         // A rejected SDP must not occupy a pending peer slot.
         if (peer)
         {
@@ -502,6 +690,22 @@ void tr_webtorrent_signaling::on_signal(
 void tr_webtorrent_signaling::upkeep()
 {
     auto const now = std::chrono::steady_clock::now();
+    if (state_->last_diagnostic_summary.time_since_epoch().count() == 0 ||
+        now - state_->last_diagnostic_summary >= 60s)
+    {
+        state_->last_diagnostic_summary = now;
+        auto const& types = state_->gathered_candidate_types;
+        tr_logAddInfo(
+            fmt::format("WebRTC diagnostics incoming={}/rejected={} remote-answers-rejected={} "
+                "outgoing-creation-failures={} ice-failures={} peer-failures={} "
+                "expired={} connected={} registered={} selected-pairs={} "
+                "local-candidates=host:{}/srflx:{}/prflx:{}/relay:{}/unknown:{}",
+                state_->incoming_offers, state_->incoming_rejections, state_->remote_answer_rejections,
+                state_->outgoing_creation_failures, state_->ice_failures, state_->peer_connection_failures,
+                state_->peer_expirations, state_->connected_peers, state_->registered_channels,
+                state_->selected_pairs, types[1], types[2], types[3], types[4], types[0]),
+            "WebTorrent");
+    }
     for (auto it = state_->batches.begin(); it != state_->batches.end();)
     {
         auto& batch = *it;
@@ -524,6 +728,7 @@ void tr_webtorrent_signaling::upkeep()
         auto const& peer = it->second;
         if (!peer->attached && now - peer->created >= OfferLifetime)
         {
+            ++state_->peer_expirations;
             it = state_->peers.erase(it);
         }
         else
