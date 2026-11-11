@@ -179,8 +179,11 @@ void tr_bandwidth::phase_one(std::vector<tr_peerIo*>& peers, tr_direction dir)
 {
     // First phase of IO. Tries to distribute bandwidth fairly to keep faster
     // peers from starving the others.
-    tr_logAddTrace(
-        fmt::format("{} peers to go round-robin for {}", peers.size(), dir == tr_direction::Up ? "upload" : "download"));
+    if (!peers.empty())
+    {
+        tr_logAddTrace(
+            fmt::format("{} peers to go round-robin for {}", peers.size(), dir == tr_direction::Up ? "upload" : "download"));
+    }
 
     // Shuffle the peers so they all have equal chance to be first in line.
     static thread_local auto urbg = tr_urbg<size_t>{};
