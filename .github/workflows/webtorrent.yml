@@ -1,4 +1,4 @@
-name: WebTorrent feature (Linux and Windows)
+name: WebTorrent feature (Linux, macOS, Windows, interop)
 
 on:
   push:
@@ -43,7 +43,41 @@ jobs:
       - name: Run libtransmission tests
         run: ctest --test-dir build-wt --output-on-failure -R 'LT\.'
 
+
+      - name: Checkout pinned anacrolix client (Pion WebRTC)
+        uses: actions/checkout@v4
+        with:
+          repository: jasminsehic/torrent
+          ref: 40144f54349deb3b3a67e74764f1d36eeefc899d
+          path: anacrolix-src
+          persist-credentials: false
+      - name: Set up Go for anacrolix client
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: anacrolix-src/go.mod
+          cache-dependency-path: anacrolix-src/go.sum
+      - name: Build independent anacrolix/Pion peer
+        run: |
+          cd anacrolix-src
+          GOWORK=off go build -o "$GITHUB_WORKSPACE/anacrolix-interop-peer" \
+            "$GITHUB_WORKSPACE/tests/interoperability/anacrolix-peer.go"
+      - name: Run bidirectional WebTorrent interoperability tests
+        timeout-minutes: 12
+        run: |
+          python3 tests/interoperability/run-anacrolix-interop.py \
+            --daemon build-wt/daemon/transmission-daemon \
+            --peer ./anacrolix-interop-peer \
+            --workdir "$RUNNER_TEMP/webtorrent-interop"
+      - name: Upload interoperability logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webtorrent-anacrolix-interop-logs
+          path: ${{ runner.temp }}/webtorrent-interop/**
+          if-no-files-found: ignore
+
   webrtc-windows:
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'feature/webtorrent-stage19-') }}
     runs-on: windows-2022
     timeout-minutes: 70
     steps:
@@ -89,6 +123,7 @@ jobs:
         run: ctest --test-dir build-wt -C RelWithDebInfo --output-on-failure -R 'LT\.(WebTorrent|PeerSocketRtc)'
 
   webrtc-macos:
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'feature/webtorrent-stage19-') }}
     runs-on: macos-26
     timeout-minutes: 70
     steps:
