@@ -23,6 +23,8 @@
 
 #define LIBTRANSMISSION_ANNOUNCER_MODULE
 
+#include <fmt/format.h>
+
 #include "libtransmission/announcer-common.h"
 #include "libtransmission/announcer-ws.h"
 #include "libtransmission/log.h"
@@ -190,6 +192,10 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
 
         void submit(Pending pending)
         {
+            tr_logAddDebug(
+                fmt::format("WSS announce requested: event={}, numwant={}",
+                    tr_announce_event_get_string(pending.request.event), pending.request.numwant),
+                "WebTorrent");
             if (closed)
             {
                 pending.callback(response_from(pending.request, false, "WebSocket connection closed"));
@@ -219,6 +225,7 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                     static_cast<size_t>(std::min<int64_t>(shared->request.numwant, 4)),
                     [weak, shared](std::vector<tr_webtorrent::Offer> offers)
                     {
+                        tr_logAddDebug(fmt::format("WebRTC offers gathered: {}", offers.size()), "WebTorrent");
                         if (auto connection = weak.lock(); connection && !connection->closed)
                         {
                             shared->payload = announce_payload(shared->request, std::move(offers));
@@ -278,6 +285,7 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
             {
                 return;
             }
+            tr_logAddDebug("WSS tracker connected", "WebTorrent");
             ready = true;
             flush();
         }
@@ -305,6 +313,7 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                 {
                     return;
                 }
+                tr_logAddTrace("WSS answer delivered to tracker socket", "WebTorrent");
                 answer_queue.pop_front();
             }
             while (!waiting.empty())
@@ -325,6 +334,7 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                     return; // Retry after buffered-amount-low.
                 }
 
+                tr_logAddTrace("WSS announce delivered to tracker socket", "WebTorrent");
                 auto submitted = std::move(pending);
                 waiting.pop_front();
                 if (submitted.request.event == TR_ANNOUNCE_EVENT_STOPPED)
@@ -347,8 +357,14 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
             auto const signal = tr_webtorrent::parse_signal(message);
             if (!signal)
             {
+                tr_logAddDebug("WSS response ignored: invalid or unsupported signaling message", "WebTorrent");
                 return;
             }
+            tr_logAddDebug(
+                signal->kind == tr_webtorrent::Signal::Kind::Offer ? "WSS received WebRTC offer" :
+                signal->kind == tr_webtorrent::Signal::Kind::Answer ? "WSS received WebRTC answer" :
+                "WSS received tracker announce response",
+                "WebTorrent");
             if (signal->kind == tr_webtorrent::Signal::Kind::Offer ||
                 signal->kind == tr_webtorrent::Signal::Kind::Answer)
             {
@@ -385,6 +401,7 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
                 in_flight.erase(it);
             }
 
+            tr_logAddTrace("WSS tracker announce response matched pending request", "WebTorrent");
             auto response = response_from(pending.request, true);
             response.interval = signal->interval;
             response.seeders = signal->complete;
@@ -452,6 +469,12 @@ struct tr_announcer_ws::State : std::enable_shared_from_this<State>
             {
                 return;
             }
+            // Do not log untrusted WebSocket error details that may contain addresses or credentials.
+            tr_logAddWarn(
+                reason == "WebSocket announce response timed out" ? "WSS announce response timed out" :
+                reason == "WebSocket tracker closed" ? "WSS tracker closed the connection" :
+                "WSS connection failed or closed",
+                "WebTorrent");
             closed = true;
             ready = false;
             auto failed = std::vector<Pending>{};
