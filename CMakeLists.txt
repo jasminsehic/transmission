@@ -591,10 +591,10 @@ if(ENABLE_WEBTORRENT)
     include(FetchContent)
     FetchContent_Declare(
         libdatachannel
-        GIT_REPOSITORY https://github.com/paullouisageneau/libdatachannel.git
-        # Pin the SDP/ICE locale-independent serialization fix (2026-10-01).
-        GIT_TAG 8c3526759eb0d801d9557eb5f67e047accc58f89
-        # A full clone is needed for FetchContent to resolve an immutable SHA.
+        GIT_REPOSITORY https://github.com/jasminsehic/libdatachannel.git
+        # Minimal locale-independent SDP/ICE serialization backport on v0.24.6.
+        GIT_TAG 6d7b16b453f128fe2817e4464e89aca4b47de71e
+        # An immutable commit hash requires a non-shallow FetchContent checkout.
         GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(libdatachannel)
