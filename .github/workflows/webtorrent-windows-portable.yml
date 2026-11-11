@@ -1,0 +1,82 @@
+name: WebTorrent Windows 11 portable desktop build
+
+on:
+  push:
+    branches:
+      - feature/webtorrent-stage20-windows-portable
+  workflow_dispatch:
+
+jobs:
+  portable-windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Prepare Windows dependencies
+        uses: ./.github/actions/prepare-deps-win32
+        with:
+          arch: x64
+          type: Deps
+      - name: Setup Visual Studio environment
+        uses: ./.github/actions/setup-vs-env-win32
+        with:
+          arch: x64
+      - name: Configure WebTorrent + Qt desktop build
+        shell: pwsh
+        run: |
+          $args = @(
+            '-S .'
+            '-B build-wt'
+            '-G Ninja'
+            '-DCMAKE_BUILD_TYPE=RelWithDebInfo'
+            ("-DCMAKE_PREFIX_PATH=" + $Env:DEPS_PREFIX)
+            '-DENABLE_WEBTORRENT=ON'
+            '-DENABLE_QT=ON'
+            '-DENABLE_GTK=OFF'
+            '-DENABLE_MAC=OFF'
+            '-DENABLE_CLI=OFF'
+            '-DENABLE_DAEMON=ON'
+            '-DENABLE_UTILS=ON'
+            '-DENABLE_TESTS=ON'
+            '-DINSTALL_DOC=OFF'
+            '-DREBUILD_WEB=OFF'
+            '-DRUN_CLANG_TIDY=OFF'
+            '-DUSE_SYSTEM_DEFAULT=OFF'
+          )
+          $vc = '"' + $Env:VCVARSALL + '"'
+          cmd /c "$vc $Env:VC_ARCH >nul && cmake $($args -join ' ')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build Qt desktop, daemon, remote and tests
+        shell: pwsh
+        run: |
+          $vc = '"' + $Env:VCVARSALL + '"'
+          cmd /c "$vc $Env:VC_ARCH >nul && cmake --build build-wt --target transmission-qt transmission-daemon transmission-remote libtransmission-test --parallel 3"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run WebRTC regression tests
+        shell: pwsh
+        run: |
+          ctest --test-dir build-wt -C RelWithDebInfo --output-on-failure -R 'LT\.(WebTorrent|PeerSocketRtc)'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Assemble portable Windows 11 package
+        shell: pwsh
+        run: |
+          & tests/interoperability/package-windows-portable.ps1 -BuildDir build-wt -DepsPrefix "$env:DEPS_PREFIX" -OutputDir "$env:RUNNER_TEMP/Transmission-WebTorrent-Windows-x64"
+      - name: Smoke-test installed executables
+        shell: pwsh
+        run: |
+          $bin = "$env:RUNNER_TEMP/Transmission-WebTorrent-Windows-x64/bin"
+          & "$bin/transmission-daemon.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'Daemon failed smoke test' }
+          & "$bin/transmission-remote.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'Remote failed smoke test' }
+          & "$bin/transmission-qt.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'Qt desktop failed smoke test' }
+      - name: Upload portable Windows 11 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Transmission-WebTorrent-Windows-x64
+          path: ${{ runner.temp }}/Transmission-WebTorrent-Windows-x64/**
+          if-no-files-found: error
+          retention-days: 30
