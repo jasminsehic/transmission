@@ -197,6 +197,8 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             pc->onStateChange(
                 [weak](rtc::PeerConnection::State state)
                 {
+                    tr_logAddDebug(
+                        fmt::format("WebRTC peer connection state: {}", static_cast<int>(state)), "WebTorrent");
                     if (state == rtc::PeerConnection::State::Failed ||
                         state == rtc::PeerConnection::State::Closed)
                     {
@@ -222,6 +224,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
 
         void start_outgoing(std::shared_ptr<Batch> const& batch_in)
         {
+            tr_logAddDebug("WebRTC outgoing offer started", "WebTorrent");
             batch = batch_in;
             dc = pc->createDataChannel("webtorrent");
             attach_channel(dc);
@@ -233,6 +236,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             std::string our_peer,
             tr_webtorrent_signaling::SendAnswer send)
         {
+            tr_logAddDebug("WebRTC incoming offer accepted for negotiation", "WebTorrent");
             remote_offer_id = signal.offer_id;
             remote_peer_id = signal.peer_id;
             our_peer_id = std::move(our_peer);
@@ -243,6 +247,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
 
         void gathering_complete()
         {
+            tr_logAddDebug("WebRTC ICE gathering complete", "WebTorrent");
             if (description_sent)
             {
                 return;
@@ -250,12 +255,14 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             auto const desc = pc->localDescription();
             if (!desc)
             {
+                tr_logAddWarn("WebRTC ICE gathering completed without local SDP", "WebTorrent");
                 return;
             }
             description_sent = true;
             auto const sdp = desc->generateSdp();
             if (incoming)
             {
+                tr_logAddDebug("WebRTC incoming answer ready", "WebTorrent");
                 if (send_answer)
                 {
                     send_answer(
@@ -264,6 +271,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             }
             else if (auto pending = batch.lock())
             {
+                tr_logAddTrace("WebRTC outgoing offer ready", "WebTorrent");
                 pending->offers.emplace_back(tr_webtorrent::Offer{ id, sdp });
                 if (pending->remaining > 0)
                 {
@@ -309,6 +317,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             {
                 return;
             }
+            tr_logAddInfo("WebRTC data channel open; registering BitTorrent peer", "WebTorrent");
             attached = true;
             auto const socket_address = parent->allocate_address();
             auto const weak_state = std::weak_ptr<State>{ parent };
@@ -323,6 +332,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                     }
                 });
             parent->session->addIncoming(std::move(socket));
+            tr_logAddDebug("WebRTC incoming peer socket submitted to session", "WebTorrent");
         }
 
         void on_answer(std::string const& sdp)
@@ -332,6 +342,7 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                 return;
             }
             answered = true;
+            tr_logAddDebug("WebRTC remote answer accepted", "WebTorrent");
             pc->setRemoteDescription(rtc::Description(sdp, rtc::Description::Type::Answer));
         }
 
@@ -385,6 +396,7 @@ void tr_webtorrent_signaling::make_offers(
     OffersReady on_ready)
 {
     count = std::min({ count, MaxOffersPerAnnounce, MaxOutstandingPeers - std::min(MaxOutstandingPeers, state_->peers.size()) });
+    tr_logAddDebug(fmt::format("WebRTC offer batch requested: {}", count), "WebTorrent");
     if (count == 0)
     {
         on_ready({});
@@ -414,6 +426,7 @@ void tr_webtorrent_signaling::make_offers(
         }
         catch (std::exception const&)
         {
+            tr_logAddWarn("WebRTC outgoing offer creation failed", "WebTorrent");
             if (peer)
             {
                 peer->remove();
@@ -450,6 +463,7 @@ void tr_webtorrent_signaling::on_signal(
         }
         catch (std::exception const&)
         {
+            tr_logAddWarn("WebRTC remote answer rejected", "WebTorrent");
             it->second->remove();
         }
         return;
@@ -476,6 +490,7 @@ void tr_webtorrent_signaling::on_signal(
     }
     catch (std::exception const&)
     {
+        tr_logAddWarn("WebRTC incoming offer rejected", "WebTorrent");
         // A rejected SDP must not occupy a pending peer slot.
         if (peer)
         {
@@ -492,6 +507,10 @@ void tr_webtorrent_signaling::upkeep()
         auto& batch = *it;
         if (batch->remaining == 0 || batch->deadline <= now)
         {
+            if (batch->remaining != 0)
+            {
+                tr_logAddWarn(fmt::format("WebRTC ICE gathering timed out for {} offers", batch->remaining), "WebTorrent");
+            }
             batch->complete();
             it = state_->batches.erase(it);
         }
