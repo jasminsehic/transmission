@@ -488,3 +488,53 @@ TEST_F(WebTorrentAnnouncerEnabledTest, InvalidIncomingOffersDoNotExhaustPeerCapa
     EXPECT_EQ(offered.load(), 1)
         << "Malformed incoming offers must not exhaust WebRTC peer capacity";
 }
+// Incoming WebRTC offers must produce an answer once. libdatachannel's default
+// automatic negotiation generates an answer when setRemoteDescription is called.
+TEST_F(WebTorrentAnnouncerEnabledTest, IncomingOfferProducesAutomaticAnswer)
+{
+    auto offerer = std::make_shared<rtc::PeerConnection>(rtc::Configuration{});
+    auto channel = offerer->createDataChannel("webtorrent");
+
+    ASSERT_TRUE(tr::test::waitFor(
+        [&]
+        {
+            return offerer->gatheringState() == rtc::PeerConnection::GatheringState::Complete;
+        },
+        20000));
+    auto const offer = offerer->localDescription();
+    ASSERT_TRUE(offer);
+
+    auto signal = tr_webtorrent::Signal{};
+    signal.kind = tr_webtorrent::Signal::Kind::Offer;
+    signal.info_hash = std::string(20, 'A');
+    signal.peer_id = std::string(20, 'B');
+    signal.offer_id = std::string(20, 'C');
+    signal.sdp = offer->generateSdp();
+
+    auto signaling = tr_webtorrent_signaling{ session_ };
+    auto response = std::string{};
+    auto answered = std::atomic<bool>{ false };
+
+    session_->run_in_session_thread(
+        [&]
+        {
+            signaling.on_signal(
+                signal,
+                "ws://127.0.0.1:9000",
+                std::string(20, 'D'),
+                [&](std::string wire)
+                {
+                    response = std::move(wire);
+                    answered = true;
+                });
+        });
+
+    ASSERT_TRUE(tr::test::waitFor([&] { return answered.load(); }, 20000))
+        << "A valid incoming offer must result in an automatic SDP answer";
+
+    auto const reply = tr_webtorrent::parse_signal(response);
+    ASSERT_TRUE(reply);
+    EXPECT_EQ(reply->kind, tr_webtorrent::Signal::Kind::Answer);
+    EXPECT_EQ(reply->offer_id, signal.offer_id);
+    EXPECT_FALSE(reply->sdp.empty());
+}

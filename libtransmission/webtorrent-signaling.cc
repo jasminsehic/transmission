@@ -397,7 +397,6 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             batch = batch_in;
             dc = pc->createDataChannel("webtorrent");
             attach_channel(dc);
-            pc->setLocalDescription(rtc::Description::Type::Offer);
         }
 
         void start_incoming(
@@ -410,12 +409,12 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             remote_peer_id = signal.peer_id;
             our_peer_id = std::move(our_peer);
             send_answer = std::move(send);
-            failure_stage = "remote-description";
+            // libdatachannel creates the local answer automatically when the remote offer is applied.
+            failure_stage = "remote-description-or-auto-answer";
             pc->setRemoteDescription(rtc::Description(signal.sdp, rtc::Description::Type::Offer));
-            tr_logAddDebug(fmt::format("WebRTC peer={} incoming remote description accepted", diagnostic_id), "WebTorrent");
-            failure_stage = "local-answer";
-            pc->setLocalDescription(rtc::Description::Type::Answer);
-            tr_logAddDebug(fmt::format("WebRTC peer={} local answer generation started", diagnostic_id), "WebTorrent");
+            tr_logAddDebug(
+                fmt::format("WebRTC peer={} incoming remote offer accepted; automatic answer started", diagnostic_id),
+                "WebTorrent");
         }
 
         void gathering_complete()
