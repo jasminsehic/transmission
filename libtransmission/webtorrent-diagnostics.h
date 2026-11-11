@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstddef>
 #include <string_view>
 
 namespace tr_webtorrent_diagnostics
@@ -27,6 +28,7 @@ inline bool decimal(std::string_view value, uint64_t limit)
         {
             return false;
         }
+        parsed = parsed * 10U + n;
     }
     return true;
 }
