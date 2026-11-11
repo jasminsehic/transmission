@@ -488,12 +488,14 @@ TEST_F(WebTorrentAnnouncerEnabledTest, InvalidIncomingOffersDoNotExhaustPeerCapa
     EXPECT_EQ(offered.load(), 1)
         << "Malformed incoming offers must not exhaust WebRTC peer capacity";
 }
+
 // Incoming WebRTC offers must produce an answer once. libdatachannel's default
 // automatic negotiation generates an answer when setRemoteDescription is called.
 TEST_F(WebTorrentAnnouncerEnabledTest, IncomingOfferProducesAutomaticAnswer)
 {
     auto offerer = std::make_shared<rtc::PeerConnection>(rtc::Configuration{});
     auto channel = offerer->createDataChannel("webtorrent");
+    ASSERT_TRUE(channel);
 
     ASSERT_TRUE(tr::test::waitFor(
         [&]
