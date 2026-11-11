@@ -22,8 +22,8 @@ inline bool decimal(std::string_view value, uint64_t limit)
         {
             return false;
         }
-        parsed = parsed * 10U + static_cast<uint64_t>(digit - '0');
-        if (parsed > limit)
+        auto const n = static_cast<uint64_t>(digit - '0');
+        if (n > limit || parsed > (limit - n) / 10U)
         {
             return false;
         }
