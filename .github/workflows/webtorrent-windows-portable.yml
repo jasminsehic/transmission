@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/webtorrent-stage20-windows-portable
+      - feature/webtorrent-stage21-windows-gui-crash-diagnostics
   workflow_dispatch:
 
 jobs:
@@ -73,6 +74,48 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Remote failed smoke test' }
           & "$bin/transmission-qt.exe" --version
           if ($LASTEXITCODE -ne 0) { throw 'Qt desktop failed smoke test' }
+      - name: Smoke-test normal Qt GUI initialization with clean profile
+        shell: pwsh
+        timeout-minutes: 2
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bin = Join-Path $env:RUNNER_TEMP 'Transmission-WebTorrent-Windows-x64/bin'
+          $exe = Join-Path $bin 'transmission-qt.exe'
+          $profile = Join-Path $env:RUNNER_TEMP 'qt-gui-smoke-profile'
+          New-Item -ItemType Directory -Path $profile -Force | Out-Null
+          $process = Start-Process -FilePath $exe -ArgumentList @('--config-dir', ('"' + $profile + '"')) -WorkingDirectory $bin -PassThru
+          try {
+            Start-Sleep -Seconds 15
+            $process.Refresh()
+            if ($process.HasExited) {
+              throw ("Qt GUI exited during startup (ExitCode=0x{0:X8})" -f [uint32]$process.ExitCode)
+            }
+            Write-Host "Qt GUI remains running 15s after normal startup (PID=$($process.Id))"
+          }
+          finally {
+            $process.Refresh()
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
+      - name: Upload matching Windows Qt debug symbols
+        if: always()
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'Transmission-Qt-PDB'
+          New-Item -ItemType Directory -Path $dest -Force | Out-Null
+          $symbols = @(Get-ChildItem -Path 'build-wt' -Recurse -File -Filter 'transmission-qt.pdb' -ErrorAction SilentlyContinue)
+          Write-Host "Matching transmission-qt.pdb files found: $($symbols.Count)"
+          foreach ($symbol in $symbols) { Copy-Item $symbol.FullName -Destination $dest -Force }
+          if ($symbols.Count -eq 0) { Write-Warning 'No Qt debug symbols available from this build' }
+      - name: Publish Windows Qt debug symbols
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Transmission-WebTorrent-Windows-x64-symbols
+          path: ${{ runner.temp }}/Transmission-Qt-PDB/**
+          if-no-files-found: warn
+          retention-days: 30
       - name: Upload portable Windows 11 build
         uses: actions/upload-artifact@v4
         with:
