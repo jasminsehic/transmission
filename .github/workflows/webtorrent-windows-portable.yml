@@ -6,6 +6,7 @@ on:
       - feature/webtorrent-stage20-windows-portable
       - feature/webtorrent-stage21-windows-gui-crash-diagnostics
       - fix/windows-qt-com-startup-null-dereference
+      - diagnostics/webtorrent-rtc-signaling
   workflow_dispatch:
 
 jobs:
