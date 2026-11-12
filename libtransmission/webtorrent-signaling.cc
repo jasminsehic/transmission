@@ -477,8 +477,6 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             {
                 return;
             }
-            tr_logAddInfo(fmt::format("WebRTC peer={} data channel open; registering BitTorrent peer", diagnostic_id), "WebTorrent");
-            attached = true;
             // Follow libtorrent RC_2_1: get the selected remote ICE endpoint
             // from libdatachannel instead of inventing a fake socket address.
             auto const remote_address = pc->remoteAddress();
@@ -492,9 +490,10 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                 remove();
                 return;
             }
-            tr_logAddDebug(
-                fmt::format("WebRTC peer={} remote-endpoint-family={}", diagnostic_id,
-                    socket_address->address().is_ipv6() ? "ipv6" : "ipv4"),
+            attached = true;
+            tr_logAddInfo(
+                fmt::format("WebRTC peer={} data channel open; registering BitTorrent peer (remote={})",
+                    diagnostic_id, socket_address->address().is_ipv6() ? "ipv6" : "ipv4"),
                 "WebTorrent");
             auto const weak_state = std::weak_ptr<State>{ parent };
             auto socket = tr_peer_socket_rtc::create(
