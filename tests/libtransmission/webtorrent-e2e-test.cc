@@ -1,5 +1,6 @@
 // Fully local WebTorrent tracker -> ICE -> DataChannel -> BitTorrent transfer.
 // No Internet STUN servers, public trackers, or third-party WebTorrent clients.
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <limits>
@@ -7,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,6 +32,8 @@
 #include "libtransmission/torrent.h"
 #include "libtransmission/types.h"
 #include "libtransmission/webtorrent-protocol.h"
+#include "libtransmission/webtorrent-endpoint.h"
+#include "libtransmission/transmission.h"
 
 #include "test-fixtures.h"
 
@@ -317,9 +321,9 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
                             }
                         });
 
+                    // libdatachannel's default automatic negotiation creates the answer here.
                     remote->setRemoteDescription(rtc::Description(
                         first["offer"]["sdp"].GetString(), rtc::Description::Type::Offer));
-                    remote->setLocalDescription(rtc::Description::Type::Answer);
                 });
         });
 
@@ -335,6 +339,43 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
     EXPECT_TRUE(tr::test::waitFor([state] { return state->saw_announce.load(); }, 15000));
     EXPECT_TRUE(tr::test::waitFor([state] { return state->got_handshake.load(); }, 25000))
         << "A WebRTC answer was accepted, but the BitTorrent handshake did not complete";
+
+    // The peer manager must expose the real endpoint selected by ICE.
+    // This validates the production transport mapping, not a synthetic test address.
+    EXPECT_TRUE(tr::test::waitFor(
+        [tor]
+        {
+            auto const peers = tr_torrentPeers(tor);
+            return std::any_of(peers.begin(), peers.end(), [](auto const& peer) { return peer.is_web_rtc; });
+        },
+        10000));
+
+    auto local_ice_address = std::optional<std::string>{};
+    {
+        auto guard = std::lock_guard{ state->mutex };
+        if (!state->peers.empty())
+        {
+            local_ice_address = state->peers.front()->localAddress();
+        }
+    }
+    ASSERT_TRUE(local_ice_address);
+    auto const selected = tr_webtorrent_endpoint::parse(*local_ice_address);
+    ASSERT_TRUE(selected);
+    auto const peers = tr_torrentPeers(tor);
+    auto found_rtc = false;
+    for (auto const& peer : peers)
+    {
+        if (!peer.is_web_rtc)
+        {
+            continue;
+        }
+        found_rtc = true;
+        EXPECT_EQ(peer.addr, selected->address().display_name());
+        EXPECT_EQ(peer.port, selected->port().host());
+        EXPECT_FALSE(peer.supports_holepunch);
+    }
+    EXPECT_TRUE(found_rtc);
+
 
     if (verify_complete)
     {
