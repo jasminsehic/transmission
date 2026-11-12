@@ -199,6 +199,7 @@ QString TrackerDelegate::getText(TrackerInfo const& inf) const
     // hostname
     str += inf.st.is_backup ? QStringLiteral("<i>") : QStringLiteral("<b>");
     auto const announce_url = inf.st.announce.toStdString();
+    auto const is_webtorrent_tracker = announce_url.starts_with("ws://") || announce_url.starts_with("wss://");
     if (auto const parsed = tr_urlParse(announce_url); parsed)
     {
         str += QStringLiteral("%1:%2")
@@ -218,16 +219,30 @@ QString TrackerDelegate::getText(TrackerInfo const& inf) const
 
             if (inf.st.last_announce_succeeded)
             {
-                //: %1 and %2 are replaced with HTML markup, %3 is duration
-                str += tr("Got a list of%1 %Ln peer(s)%2 %3 ago", nullptr, inf.st.last_announce_peer_count)
-                           .arg(success_markup_begin)
-                           .arg(success_markup_end)
-                           .arg(tstr);
+                if (is_webtorrent_tracker)
+                {
+                    // WebTorrent trackers deliver SDP offers and answers, not an IP:port peer list.
+                    //: %1 and %2 are replaced with HTML markup, %3 is duration
+                    str += tr("WebTorrent tracker announce %1succeeded%2 %3 ago")
+                               .arg(success_markup_begin)
+                               .arg(success_markup_end)
+                               .arg(tstr);
+                }
+                else
+                {
+                    //: %1 and %2 are replaced with HTML markup, %3 is duration
+                    str += tr("Got a list of%1 %Ln peer(s)%2 %3 ago", nullptr, inf.st.last_announce_peer_count)
+                               .arg(success_markup_begin)
+                               .arg(success_markup_end)
+                               .arg(tstr);
+                }
             }
             else if (inf.st.last_announce_timed_out)
             {
                 //: %1 and %2 are replaced with HTML markup, %3 is duration
-                str += tr("Peer list request %1timed out%2 %3 ago; will retry")
+                str += (is_webtorrent_tracker ?
+                            tr("WebTorrent tracker announce %1timed out%2 %3 ago; will retry") :
+                            tr("Peer list request %1timed out%2 %3 ago; will retry"))
                            .arg(timeout_markup_begin)
                            .arg(timeout_markup_end)
                            .arg(tstr);
