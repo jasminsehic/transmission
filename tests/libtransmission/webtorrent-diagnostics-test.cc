@@ -13,6 +13,7 @@
 #endif
 
 #include "libtransmission/webtorrent-diagnostics.h"
+#include "libtransmission/webtorrent-endpoint.h"
 #include "test-fixtures.h"
 
 using WebTorrentDiagnosticsTest = ::tr::test::TransmissionTest;
@@ -84,4 +85,41 @@ TEST_F(WebTorrentDiagnosticsTest, NativeLibdatachannelUsesClassicLocaleForWireNu
     EXPECT_NE(serialized.find("2114977791"), std::string::npos);
     EXPECT_NE(serialized.find("50310"), std::string::npos);
     EXPECT_EQ(serialized.find(','), std::string::npos);
+}
+
+TEST_F(WebTorrentDiagnosticsTest, ParsesSelectedRealIceEndpointsForIpv4AndIpv6)
+{
+    using tr_webtorrent_endpoint::parse;
+
+    auto const ipv4 = parse("203.0.113.19:53421");
+    ASSERT_TRUE(ipv4);
+    EXPECT_TRUE(ipv4->address().is_ipv4());
+    EXPECT_EQ(ipv4->address().display_name(), "203.0.113.19");
+    EXPECT_EQ(ipv4->port().host(), 53421U);
+
+    // libjuice returns unbracketed IPv6; also accept the bracketed form.
+    auto const ipv6 = parse("2001:db8::42:62000");
+    ASSERT_TRUE(ipv6);
+    EXPECT_TRUE(ipv6->address().is_ipv6());
+    EXPECT_EQ(ipv6->address().display_name(), "2001:db8::42");
+    EXPECT_EQ(ipv6->port().host(), 62000U);
+
+    auto const bracketed = parse("[2001:db8::42]:62000");
+    ASSERT_TRUE(bracketed);
+    EXPECT_EQ(bracketed->address(), ipv6->address());
+    EXPECT_EQ(bracketed->port(), ipv6->port());
+}
+
+TEST_F(WebTorrentDiagnosticsTest, RejectsMissingOrMalformedSelectedIceEndpoints)
+{
+    using tr_webtorrent_endpoint::parse;
+
+    EXPECT_FALSE(parse(""));
+    EXPECT_FALSE(parse("127.0.0.1"));
+    EXPECT_FALSE(parse("0.0.0.0:1000"));
+    EXPECT_FALSE(parse("203.0.113.10:0"));
+    EXPECT_FALSE(parse("203.0.113.10:70000"));
+    EXPECT_FALSE(parse("203.0.113.10:123notport"));
+    EXPECT_FALSE(parse("203.0.113.10:-1"));
+    EXPECT_FALSE(parse("not_an_ip:1000"));
 }

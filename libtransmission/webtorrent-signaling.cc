@@ -32,6 +32,7 @@
 #include "libtransmission/peer-socket-rtc.h"
 #include "libtransmission/session.h"
 #include "libtransmission/webtorrent-signaling.h"
+#include "libtransmission/webtorrent-endpoint.h"
 #include "libtransmission/webtorrent-diagnostics.h"
 
 using namespace std::chrono_literals;
@@ -126,7 +127,6 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
     std::atomic<bool> closing = false;
     std::map<std::string, std::shared_ptr<Peer>> peers;
     std::vector<std::shared_ptr<Batch>> batches;
-    uint32_t next_virtual_peer = 0;
     uint64_t next_diagnostic_peer = 0;
     uint64_t incoming_offers = 0;
     uint64_t incoming_rejections = 0;
@@ -140,18 +140,6 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
     uint64_t selected_pairs = 0;
     std::array<uint64_t, 5> gathered_candidate_types{};
     std::chrono::steady_clock::time_point last_diagnostic_summary{};
-
-    tr_socket_address allocate_address()
-    {
-        // Internal identity only: RFC 2544 benchmark range is not dialed and
-        // must not enter classic PEX. Avoid collision with real TCP endpoints.
-        auto const id = ++next_virtual_peer;
-        auto const host_a = (id >> 8U) & 0xFFU;
-        auto const host_b = id & 0xFFU;
-        auto const port = 1024U + (id % 64000U);
-        // IPv4 dotted address must contain four octets (198.18.a.b).
-        return *tr_socket_address::from_string(fmt::format("198.18.{}.{}:{}", host_a, host_b, port));
-    }
 
     struct Batch
     {
@@ -491,10 +479,26 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             }
             tr_logAddInfo(fmt::format("WebRTC peer={} data channel open; registering BitTorrent peer", diagnostic_id), "WebTorrent");
             attached = true;
-            auto const socket_address = parent->allocate_address();
+            // Follow libtorrent RC_2_1: get the selected remote ICE endpoint
+            // from libdatachannel instead of inventing a fake socket address.
+            auto const remote_address = pc->remoteAddress();
+            auto const socket_address =
+                remote_address ? tr_webtorrent_endpoint::parse(*remote_address) : std::nullopt;
+            if (!socket_address)
+            {
+                tr_logAddWarn(
+                    fmt::format("WebRTC peer={} selected ICE remote endpoint unavailable or invalid", diagnostic_id),
+                    "WebTorrent");
+                remove();
+                return;
+            }
+            tr_logAddDebug(
+                fmt::format("WebRTC peer={} remote-endpoint-family={}", diagnostic_id,
+                    socket_address->address().is_ipv6() ? "ipv6" : "ipv4"),
+                "WebTorrent");
             auto const weak_state = std::weak_ptr<State>{ parent };
             auto socket = tr_peer_socket_rtc::create(
-                socket_address,
+                *socket_address,
                 dc,
                 [weak_state](std::function<void()> callback)
                 {

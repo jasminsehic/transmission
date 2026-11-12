@@ -25,6 +25,7 @@
 #include "libtransmission/error.h"
 #include "libtransmission/net.h"
 #include "libtransmission/peer-socket-rtc.h"
+#include "libtransmission/webtorrent-endpoint.h"
 
 #include "test-fixtures.h"
 
@@ -87,8 +88,17 @@ TEST_F(PeerSocketRtcTest, BidirectionalBitTorrentHandshake)
         ASSERT_TRUE(cv.wait_for(lock, 10s, [&]() { return dc1_opened && dc2_opened; }));
     }
 
-    auto const addr1 = *tr_socket_address::from_string("127.0.0.1:10001");
-    auto const addr2 = *tr_socket_address::from_string("127.0.0.1:10002");
+    // Use the actual selected ICE remote endpoints, not fabricated localhost ports.
+    auto const remote1 = pc1->remoteAddress();
+    auto const remote2 = pc2->remoteAddress();
+    ASSERT_TRUE(remote1);
+    ASSERT_TRUE(remote2);
+    auto const parsed1 = tr_webtorrent_endpoint::parse(*remote1);
+    auto const parsed2 = tr_webtorrent_endpoint::parse(*remote2);
+    ASSERT_TRUE(parsed1);
+    ASSERT_TRUE(parsed2);
+    auto const addr1 = *parsed1;
+    auto const addr2 = *parsed2;
 
     auto sock1 = tr_peer_socket_rtc::create(addr1, dc1);
     auto sock2 = tr_peer_socket_rtc::create(addr2, dc2);
@@ -215,8 +225,17 @@ TEST_F(PeerSocketRtcTest, BlockDataTransfer)
         ASSERT_TRUE(cv.wait_for(lock, 10s, [&]() { return dc1_opened && dc2_opened; }));
     }
 
-    auto const addr1 = *tr_socket_address::from_string("127.0.0.1:10001");
-    auto const addr2 = *tr_socket_address::from_string("127.0.0.1:10002");
+    // Use the actual selected ICE remote endpoints, not fabricated localhost ports.
+    auto const remote1 = pc1->remoteAddress();
+    auto const remote2 = pc2->remoteAddress();
+    ASSERT_TRUE(remote1);
+    ASSERT_TRUE(remote2);
+    auto const parsed1 = tr_webtorrent_endpoint::parse(*remote1);
+    auto const parsed2 = tr_webtorrent_endpoint::parse(*remote2);
+    ASSERT_TRUE(parsed1);
+    ASSERT_TRUE(parsed2);
+    auto const addr1 = *parsed1;
+    auto const addr2 = *parsed2;
 
     auto sock1 = tr_peer_socket_rtc::create(addr1, dc1);
     auto sock2 = tr_peer_socket_rtc::create(addr2, dc2);
@@ -307,8 +326,17 @@ TEST_F(PeerSocketRtcTest, CloseHandling)
         ASSERT_TRUE(cv.wait_for(lock, 10s, [&]() { return dc1_opened && dc2_opened; }));
     }
 
-    auto const addr1 = *tr_socket_address::from_string("127.0.0.1:10001");
-    auto const addr2 = *tr_socket_address::from_string("127.0.0.1:10002");
+    // Use the actual selected ICE remote endpoints, not fabricated localhost ports.
+    auto const remote1 = pc1->remoteAddress();
+    auto const remote2 = pc2->remoteAddress();
+    ASSERT_TRUE(remote1);
+    ASSERT_TRUE(remote2);
+    auto const parsed1 = tr_webtorrent_endpoint::parse(*remote1);
+    auto const parsed2 = tr_webtorrent_endpoint::parse(*remote2);
+    ASSERT_TRUE(parsed1);
+    ASSERT_TRUE(parsed2);
+    auto const addr1 = *parsed1;
+    auto const addr2 = *parsed2;
 
     auto sock1 = tr_peer_socket_rtc::create(addr1, dc1);
     auto sock2 = tr_peer_socket_rtc::create(addr2, dc2);
