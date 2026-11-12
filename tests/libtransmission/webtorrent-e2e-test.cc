@@ -6,6 +6,7 @@
 #include <limits>
 #include <chrono>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -31,6 +32,7 @@
 #include "libtransmission/session.h"
 #include "libtransmission/torrent.h"
 #include "libtransmission/types.h"
+#include "libtransmission/variant.h"
 #include "libtransmission/webtorrent-protocol.h"
 #include "libtransmission/webtorrent-endpoint.h"
 #include "libtransmission/transmission.h"
@@ -62,6 +64,9 @@ struct WebTorrentTestTracker
     std::vector<std::shared_ptr<rtc::DataChannel>> channels;
     std::atomic<bool> saw_announce = false;
     std::atomic<bool> got_handshake = false;
+    std::atomic<bool> got_extended_handshake = false;
+    bool no_classic_address_hints = false;
+    std::string observed_yourip;
     std::atomic<uint64_t> served_bytes = 0;
     std::atomic<uint32_t> piece_count = 0;
     std::atomic<uint64_t> total_size = 0;
@@ -191,6 +196,7 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
                                         hs.push_back(19);
                                         hs += "BitTorrent protocol";
                                         hs.append(8, '\0');
+                                        hs[25] = static_cast<char>(0x10); // BEP 10 support
                                         hs += hash;
                                         hs += remote_id;
                                         auto wire = rtc::binary{};
@@ -247,6 +253,40 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
                                                 state->received.size() < 4U + frame_size)
                                             {
                                                 break;
+                                            }
+
+                                            // Inspect the actual BEP 10 extension handshake on this ICE connection.
+                                            if (frame_size >= 2U &&
+                                                state->received[4U] == std::byte{ 20 } &&
+                                                state->received[5U] == std::byte{ 0 })
+                                            {
+                                                auto const body = std::string_view{
+                                                    reinterpret_cast<char const*>(state->received.data() + 6U),
+                                                    frame_size - 2U };
+                                                auto const decoded = tr_variant_serde::benc().inplace().parse(body);
+                                                if (decoded)
+                                                {
+                                                    if (auto const* fields = decoded->get_if<tr_variant::Map>())
+                                                    {
+                                                        auto const no_hints = !fields->value_if<int64_t>(TR_KEY_p) &&
+                                                            !fields->value_if<std::string_view>(TR_KEY_ipv4) &&
+                                                            !fields->value_if<std::string_view>(TR_KEY_ipv6);
+                                                        auto no_discovery = true;
+                                                        if (auto const* extensions =
+                                                                fields->find_if<tr_variant::Map>(TR_KEY_m))
+                                                        {
+                                                            no_discovery = !extensions->value_if<int64_t>(TR_KEY_ut_pex) &&
+                                                                !extensions->value_if<int64_t>(TR_KEY_ut_holepunch);
+                                                        }
+                                                        state->no_classic_address_hints = no_hints && no_discovery;
+                                                        if (auto const yourip =
+                                                                fields->value_if<std::string_view>(TR_KEY_yourip))
+                                                        {
+                                                            state->observed_yourip = std::string{ *yourip };
+                                                        }
+                                                        state->got_extended_handshake = true;
+                                                    }
+                                                }
                                             }
 
                                             if (state->serve_pieces && frame_size > 0U)
@@ -361,6 +401,21 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
     ASSERT_TRUE(local_ice_address);
     auto const selected = tr_webtorrent_endpoint::parse(*local_ice_address);
     ASSERT_TRUE(selected);
+
+    EXPECT_TRUE(tr::test::waitFor([state] { return state->got_extended_handshake.load(); }, 10000))
+        << "The real WebRTC connection must negotiate the BEP 10 extension handshake";
+    {
+        auto guard = std::lock_guard{ state->mutex };
+        EXPECT_TRUE(state->no_classic_address_hints)
+            << "WebRTC must not advertise classic TCP ports, PEX addresses or hole-punch support";
+
+        auto compact = std::vector<std::byte>{};
+        selected->address().to_compact(std::back_inserter(compact));
+        auto const expected_yourip = std::string{
+            reinterpret_cast<char const*>(compact.data()), compact.size() };
+        EXPECT_EQ(state->observed_yourip, expected_yourip)
+            << "BEP 10 yourip must contain the real selected remote ICE address";
+    }
     auto const peers = tr_torrentPeers(tor);
     auto found_rtc = false;
     for (auto const& peer : peers)
