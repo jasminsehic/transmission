@@ -1255,7 +1255,6 @@ void tr_peerMsgsImpl::send_ltep_handshake()
                 TR_KEY_ipv6,
                 std::string_view{ reinterpret_cast<char const*>(&addr->addr.addr6), sizeof(addr->addr.addr6) });
         }
-
     }
 
     // https://www.bittorrent.org/beps/bep_0009.html
@@ -1367,7 +1366,7 @@ void tr_peerMsgsImpl::parse_ltep_handshake(MessageReader& payload)
     {
         if (tor_.is_public())
         {
-            if (auto const ut_pex = !is_rtc_connection() ? sub->value_if<int64_t>(TR_KEY_ut_pex) : std::nullopt)
+            if (auto const ut_pex = sub->value_if<int64_t>(TR_KEY_ut_pex); ut_pex && !is_rtc_connection())
             {
                 ut_pex_id_ = static_cast<uint8_t>(*ut_pex);
                 logtrace(this, fmt::format("msgs->ut_pex is {:d}", ut_pex_id_));
@@ -1380,7 +1379,8 @@ void tr_peerMsgsImpl::parse_ltep_handshake(MessageReader& payload)
             }
         }
 
-        if (auto const ut_holepunch = !is_rtc_connection() ? sub->value_if<uint8_t>(TR_KEY_ut_holepunch) : std::nullopt)
+        if (auto const ut_holepunch = sub->value_if<uint8_t>(TR_KEY_ut_holepunch);
+            ut_holepunch && !is_rtc_connection())
         {
             ut_holepunch_id_ = *ut_holepunch;
             holepunch_supported = *ut_holepunch != 0;
