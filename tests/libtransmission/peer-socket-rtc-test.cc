@@ -132,6 +132,7 @@ TEST_F(PeerSocketRtcTest, BidirectionalBitTorrentHandshake)
     tr_error err;
     auto const n_written = sock1->try_write(outbuf, handshake_data.size(), &err);
     EXPECT_EQ(n_written, handshake_data.size());
+    EXPECT_EQ(sock1->bytes_queued(), handshake_data.size());
 
     // Wait for read_cb on sock2
     {
@@ -145,6 +146,7 @@ TEST_F(PeerSocketRtcTest, BidirectionalBitTorrentHandshake)
 
     std::string const received(reinterpret_cast<char const*>(inbuf.data()), inbuf.size());
     EXPECT_EQ(received, handshake_data);
+    EXPECT_GE(sock2->bytes_received(), handshake_data.size());
 
     // 2. Send handshake response back from sock2 to sock1
     bool sock1_read_ready = false;

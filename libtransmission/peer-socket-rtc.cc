@@ -130,6 +130,16 @@ public:
         return diagnostic_id_;
     }
 
+    [[nodiscard]] uint64_t bytes_queued() const noexcept override
+    {
+        return bytes_queued_.load();
+    }
+
+    [[nodiscard]] uint64_t bytes_received() const noexcept override
+    {
+        return bytes_received_.load();
+    }
+
     [[nodiscard]] bool is_closed() const noexcept override
     {
         return is_closed_.load();
@@ -252,7 +262,7 @@ private:
             });
     }
 
-    void on_channel_error(std::string message)
+    void on_channel_error([[maybe_unused]] std::string message)
     {
         if (is_closed_.exchange(true))
         {
@@ -260,12 +270,12 @@ private:
         }
         report_transport_stats("error");
         dispatch(
-            [weak_self = weak_from_this(), msg = std::move(message)]()
+            [weak_self = weak_from_this()]()
             {
                 if (auto self = weak_self.lock())
                 {
                     auto error = tr_error{};
-                    error.set(EIO, msg);
+                    error.set(EIO, "WebRTC data channel error");
                     self->error_cb(error);
                 }
             });

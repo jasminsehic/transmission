@@ -33,6 +33,8 @@ public:
 
     [[nodiscard]] virtual std::shared_ptr<rtc::DataChannel> data_channel() const noexcept = 0;
     [[nodiscard]] virtual uint64_t diagnostic_id() const noexcept = 0;
+    [[nodiscard]] virtual uint64_t bytes_queued() const noexcept = 0;
+    [[nodiscard]] virtual uint64_t bytes_received() const noexcept = 0;
 
 protected:
     explicit tr_peer_socket_rtc(tr_socket_address const& socket_address);
