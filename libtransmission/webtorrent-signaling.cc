@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -284,9 +285,10 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                         peer->dispatch(
                             [state](Peer& p)
                             {
+                                p.last_ice_state = ice_state_name(state);
                                 tr_logAddDebug(
                                     fmt::format("WebRTC peer={} ice-state={}", p.diagnostic_id,
-                                        ice_state_name(state)),
+                                        p.last_ice_state),
                                     "WebTorrent");
                                 if (state == rtc::PeerConnection::IceState::Connected ||
                                     state == rtc::PeerConnection::IceState::Completed)
@@ -311,15 +313,17 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                         peer->dispatch(
                             [state](Peer& p)
                             {
+                                p.last_connection_state = rtc_state_name(state);
                                 tr_logAddDebug(
                                     fmt::format("WebRTC peer={} direction={} connection-state={}", p.diagnostic_id,
-                                        p.incoming ? "incoming" : "outgoing", rtc_state_name(state)),
+                                        p.incoming ? "incoming" : "outgoing", p.last_connection_state),
                                     "WebTorrent");
                                 if (auto parent = p.owner.lock())
                                 {
                                     if (state == rtc::PeerConnection::State::Connected)
                                     {
                                         ++parent->connected_peers;
+                                        p.connected_once = true;
                                         p.log_selected_pair();
                                     }
                                     if (state == rtc::PeerConnection::State::Failed)
@@ -330,7 +334,8 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                                 if (state == rtc::PeerConnection::State::Failed ||
                                     state == rtc::PeerConnection::State::Closed)
                                 {
-                                    p.remove();
+                                    p.remove(state == rtc::PeerConnection::State::Failed ?
+                                        "peer-connection-failed" : "peer-connection-closed");
                                 }
                             });
                     }
@@ -364,6 +369,8 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                     return;
                 }
                 selected_pair_reported = true;
+                selected_local_type = candidate_type_name(local.type());
+                selected_remote_type = candidate_type_name(remote.type());
                 if (auto parent = owner.lock())
                 {
                     ++parent->selected_pairs;
@@ -487,10 +494,11 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                 tr_logAddWarn(
                     fmt::format("WebRTC peer={} selected ICE remote endpoint unavailable or invalid", diagnostic_id),
                     "WebTorrent");
-                remove();
+                remove("invalid-selected-ice-endpoint");
                 return;
             }
             attached = true;
+            channel_opened = std::chrono::steady_clock::now();
             tr_logAddInfo(
                 fmt::format("WebRTC peer={} data channel open; registering BitTorrent peer (remote={})",
                     diagnostic_id, socket_address->address().is_ipv6() ? "ipv6" : "ipv4"),
@@ -522,13 +530,24 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             tr_logAddDebug(fmt::format("WebRTC peer={} remote answer accepted", diagnostic_id), "WebTorrent");
         }
 
-        void remove()
+        void remove(std::string_view reason = "removed")
         {
             if (auto parent = owner.lock())
             {
                 auto it = parent->peers.find(id);
                 if (it != parent->peers.end() && it->second.get() == this)
                 {
+                    auto const now = std::chrono::steady_clock::now();
+                    auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - created).count();
+                    auto const open_ms = channel_opened ?
+                        std::chrono::duration_cast<std::chrono::milliseconds>(now - *channel_opened).count() : 0;
+                    tr_logAddInfo(
+                        fmt::format("WebRTC lifecycle peer={} direction={} reason={} age-ms={} open-ms={} "
+                            "channel-open={} connected={} ice={} connection={} selected={}/{}",
+                            diagnostic_id, incoming ? "incoming" : "outgoing", reason, age_ms, open_ms,
+                            channel_opened.has_value(), connected_once, last_ice_state,
+                            last_connection_state, selected_local_type, selected_remote_type),
+                        "WebTorrent");
                     parent->peers.erase(it);
                 }
             }
@@ -544,6 +563,12 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
         std::shared_ptr<rtc::DataChannel> dc;
         std::weak_ptr<Batch> batch;
         std::chrono::steady_clock::time_point const created;
+        std::optional<std::chrono::steady_clock::time_point> channel_opened;
+        std::string_view last_ice_state = "new";
+        std::string_view last_connection_state = "new";
+        std::string_view selected_local_type = "unselected";
+        std::string_view selected_remote_type = "unselected";
+        bool connected_once = false;
         tr_webtorrent_signaling::SendAnswer send_answer;
         std::string remote_peer_id;
         std::string remote_offer_id;
