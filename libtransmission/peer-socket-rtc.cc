@@ -45,11 +45,13 @@ public:
         tr_socket_address const& socket_address,
         std::shared_ptr<rtc::DataChannel> data_channel,
         Dispatcher dispatcher,
-        uint64_t diagnostic_id)
+        uint64_t diagnostic_id,
+        TerminalCallback on_terminal)
         : tr_peer_socket_rtc{ socket_address }
         , dc_{ std::move(data_channel) }
         , dispatcher_{ std::move(dispatcher) }
         , diagnostic_id_{ diagnostic_id }
+        , on_terminal_{ std::move(on_terminal) }
     {
         TR_ASSERT(dc_ != nullptr);
         tr_logAddTraceSock(this, fmt::format("socket (WebRTC) initialized for channel label '{}'", dc_->label()));
@@ -250,6 +252,10 @@ private:
             return;
         }
         report_transport_stats("closed");
+        if (on_terminal_)
+        {
+            on_terminal_("data-channel-closed");
+        }
         dispatch(
             [weak_self = weak_from_this()]()
             {
@@ -269,6 +275,10 @@ private:
             return;
         }
         report_transport_stats("error");
+        if (on_terminal_)
+        {
+            on_terminal_("data-channel-error");
+        }
         dispatch(
             [weak_self = weak_from_this()]()
             {
@@ -358,6 +368,7 @@ private:
     std::shared_ptr<rtc::DataChannel> const dc_;
     Dispatcher const dispatcher_;
     uint64_t const diagnostic_id_;
+    TerminalCallback const on_terminal_;
     std::atomic<uint64_t> bytes_queued_{ 0 };
     std::atomic<uint64_t> bytes_received_{ 0 };
     std::atomic<uint64_t> messages_queued_{ 0 };
@@ -381,10 +392,11 @@ std::shared_ptr<tr_peer_socket_rtc> tr_peer_socket_rtc::create(
     tr_socket_address const& socket_address,
     std::shared_ptr<rtc::DataChannel> data_channel,
     Dispatcher dispatcher,
-    uint64_t diagnostic_id)
+    uint64_t diagnostic_id,
+    TerminalCallback on_terminal)
 {
     auto sock = std::make_shared<tr_peer_socket_rtc_impl>(
-        socket_address, std::move(data_channel), std::move(dispatcher), diagnostic_id);
+        socket_address, std::move(data_channel), std::move(dispatcher), diagnostic_id, std::move(on_terminal));
     sock->init();
     return sock;
 }
