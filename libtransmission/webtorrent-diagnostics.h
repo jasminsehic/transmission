@@ -4,11 +4,53 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
+#include <algorithm>
 #include <cstddef>
 #include <string_view>
 
 namespace tr_webtorrent_diagnostics
 {
+
+[[nodiscard]] inline std::string_view library_error(std::string_view message)
+{
+    // Library error text may contain an address, ICE credentials or the full SDP.
+    // Only return fixed reason labels, never the original message.
+    auto lower = std::string{ message };
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c)
+    {
+        return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : static_cast<char>(c);
+    });
+    auto const has = [&lower](std::string_view value) { return lower.find(value) != std::string::npos; };
+
+    if (has("invalid integer")) return "invalid-description-integer";
+    if (has("invalid media description")) return "invalid-media-description";
+    if (has("invalid candidate format")) return "invalid-candidate-format";
+    if (has("invalid candidate address")) return "invalid-candidate-address";
+    if (has("unexpected remote") || has("unexpected local") || has("signaling state"))
+        return "invalid-signaling-state";
+    if (has("ice-ufrag") || has("ice-pwd") || has("ice credentials")) return "invalid-ice-credentials";
+    if (has("fingerprint")) return "invalid-fingerprint";
+    if (has("no datachannel or track")) return "missing-datachannel";
+    if (has("peer connection is closed")) return "closed-peer-connection";
+    if (has("ice transport")) return "ice-transport-error";
+    if (has("dtls transport")) return "dtls-transport-error";
+    if (has("sctp transport")) return "sctp-transport-error";
+    return "other-library-error";
+}
+
+[[nodiscard]] inline std::string_view client_family(std::string_view name)
+{
+    // A peer's version or user agent is untrusted and should not appear in diagnostics.
+    if (name.starts_with("qBittorrent")) return "qbittorrent";
+    if (name.starts_with("WebTorrent")) return "webtorrent";
+    if (name.starts_with("Deluge")) return "deluge";
+    if (name.starts_with("Transmission")) return "transmission";
+    if (name.starts_with("BiglyBT")) return "biglybt";
+    if (name.starts_with("libtorrent")) return "libtorrent";
+    return "other";
+}
+
 inline bool decimal(std::string_view value, uint64_t limit)
 {
     if (value.empty())
