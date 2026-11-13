@@ -405,8 +405,10 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             our_peer_id = std::move(our_peer);
             send_answer = std::move(send);
             // libdatachannel creates the local answer automatically when the remote offer is applied.
-            failure_stage = "remote-description-or-auto-answer";
-            pc->setRemoteDescription(rtc::Description(signal.sdp, rtc::Description::Type::Offer));
+            failure_stage = "offer-parse";
+            auto remote_offer = rtc::Description(signal.sdp, rtc::Description::Type::Offer);
+            failure_stage = "offer-apply-and-auto-answer";
+            pc->setRemoteDescription(std::move(remote_offer));
             tr_logAddDebug(
                 fmt::format("WebRTC peer={} incoming remote offer accepted; automatic answer started", diagnostic_id),
                 "WebTorrent");
@@ -525,7 +527,10 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
             {
                 return;
             }
-            pc->setRemoteDescription(rtc::Description(sdp, rtc::Description::Type::Answer));
+            failure_stage = "answer-parse";
+            auto remote_answer = rtc::Description(sdp, rtc::Description::Type::Answer);
+            failure_stage = "answer-apply";
+            pc->setRemoteDescription(std::move(remote_answer));
             answered = true;
             tr_logAddDebug(fmt::format("WebRTC peer={} remote answer accepted", diagnostic_id), "WebTorrent");
         }
@@ -629,13 +634,14 @@ void tr_webtorrent_signaling::make_offers(
             peer->init();
             peer->start_outgoing(batch);
         }
-        catch (std::exception const&)
+        catch (std::exception const& e)
         {
             ++state_->outgoing_creation_failures;
-            tr_logAddWarn("WebRTC outgoing offer creation failed; see diagnostic counters", "WebTorrent");
+            tr_logAddWarn(fmt::format("WebRTC outgoing offer creation failed library-error={}",
+                tr_webtorrent_diagnostics::library_error(e.what())), "WebTorrent");
             if (peer)
             {
-                peer->remove();
+                peer->remove("outgoing-offer-create-failed");
             }
             if (batch->remaining != 0)
             {
@@ -667,14 +673,16 @@ void tr_webtorrent_signaling::on_signal(
         {
             it->second->on_answer(signal.sdp);
         }
-        catch (std::exception const&)
+        catch (std::exception const& e)
         {
             ++state_->remote_answer_rejections;
             tr_logAddWarn(
-                fmt::format("WebRTC peer={} remote answer rejected reason={}", it->second->diagnostic_id,
-                    tr_webtorrent_diagnostics::sdp_issue(signal.sdp)),
+                fmt::format("WebRTC peer={} remote answer rejected stage={} sdp={} library-error={}",
+                    it->second->diagnostic_id, it->second->failure_stage,
+                    tr_webtorrent_diagnostics::sdp_issue(signal.sdp),
+                    tr_webtorrent_diagnostics::library_error(e.what())),
                 "WebTorrent");
-            it->second->remove();
+            it->second->remove("remote-answer-rejected");
         }
         return;
     }
@@ -699,19 +707,20 @@ void tr_webtorrent_signaling::on_signal(
         peer->init();
         peer->start_incoming(signal, our_peer_id, std::move(send_answer));
     }
-    catch (std::exception const&)
+    catch (std::exception const& e)
     {
         ++state_->incoming_rejections;
         tr_logAddWarn(
-            fmt::format("WebRTC incoming offer rejected peer={} stage={} reason={}",
+            fmt::format("WebRTC incoming offer rejected peer={} stage={} sdp={} library-error={}",
                 peer ? peer->diagnostic_id : 0,
                 peer ? peer->failure_stage : "create-peer",
-                tr_webtorrent_diagnostics::sdp_issue(signal.sdp)),
+                tr_webtorrent_diagnostics::sdp_issue(signal.sdp),
+                tr_webtorrent_diagnostics::library_error(e.what())),
             "WebTorrent");
         // A rejected SDP must not occupy a pending peer slot.
         if (peer)
         {
-            peer->remove();
+            peer->remove("incoming-offer-rejected");
         }
     }
 }
@@ -758,7 +767,8 @@ void tr_webtorrent_signaling::upkeep()
         if (!peer->attached && now - peer->created >= OfferLifetime)
         {
             ++state_->peer_expirations;
-            it = state_->peers.erase(it);
+            ++it;
+            peer->remove("offer-expired");
         }
         else
         {
