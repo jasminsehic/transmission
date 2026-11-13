@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -342,7 +343,21 @@ private:
             return {};
         }
 
-        if (!dc_->send(data_ptr, n_bytes))
+        auto sent = false;
+        try
+        {
+            sent = dc_->send(data_ptr, n_bytes);
+        }
+        catch (std::exception const&)
+        {
+            on_channel_error("WebRTC data channel send failed");
+            if (error != nullptr)
+            {
+                error->set(EIO, "WebRTC data channel send failed");
+            }
+            return {};
+        }
+        if (!sent)
         {
             if (error != nullptr)
             {
