@@ -56,6 +56,7 @@
 #include "libtransmission/utils.h"
 #include "libtransmission/values.h"
 #include "libtransmission/webseed.h"
+#include "libtransmission/webtorrent-diagnostics.h"
 
 using namespace std::literals;
 using namespace tr::Values;
@@ -534,6 +535,16 @@ public:
     void remove_peer(std::shared_ptr<tr_peerMsgs> const& peer)
     {
         auto const lock = unique_lock();
+
+        if (peer->is_rtc_connection())
+        {
+            auto client = std::array<char, 128>{};
+            tr_clientForId(client.data(), client.size(), peer->peer_id());
+            tr_logAddInfo(
+                fmt::format("WebRTC BitTorrent peer removed client-family={} local-seed={} remote-seed={}",
+                    tr_webtorrent_diagnostics::client_family(client.data()), tor->is_done(), peer->is_seed()),
+                "WebTorrent");
+        }
 
         peer_disconnect(tor, peer->has(), peer->active_requests);
 
@@ -1495,6 +1506,21 @@ void create_bit_torrent_peer(
     auto const& socket_address = result.io->socket_address();
     auto* const swarm = manager->get_existing_swarm(result.io->torrent_hash());
     auto info = swarm != nullptr ? swarm->get_existing_peer_info(socket_address) : std::shared_ptr<tr_peer_info>{};
+
+    if (result.io->is_rtc())
+    {
+        auto client = std::array<char, 128>{};
+        if (result.peer_id)
+        {
+            tr_clientForId(client.data(), client.size(), *result.peer_id);
+        }
+        tr_logAddInfo(
+            fmt::format("WebRTC BitTorrent handshake peer={} success={} client-family={} local-seed={}",
+                result.io->rtc_diagnostic_id(), result.is_connected,
+                tr_webtorrent_diagnostics::client_family(client.data()),
+                swarm != nullptr && swarm->tor->is_done()),
+            "WebTorrent");
+    }
 
     if (result.io->is_incoming())
     {
