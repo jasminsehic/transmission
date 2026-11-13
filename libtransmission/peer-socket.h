@@ -98,6 +98,12 @@ public:
         return type() == Type::RTC;
     }
 
+    // RTC transport closure is reported once through its registered error callback.
+    [[nodiscard]] virtual bool is_closed() const noexcept
+    {
+        return false;
+    }
+
     [[nodiscard]] static bool limit_reached(tr_session const* session) noexcept;
 
 protected:

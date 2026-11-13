@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -44,10 +45,14 @@ public:
     tr_peer_socket_rtc_impl(
         tr_socket_address const& socket_address,
         std::shared_ptr<rtc::DataChannel> data_channel,
-        Dispatcher dispatcher)
+        Dispatcher dispatcher,
+        uint64_t diagnostic_id,
+        TerminalCallback on_terminal)
         : tr_peer_socket_rtc{ socket_address }
         , dc_{ std::move(data_channel) }
         , dispatcher_{ std::move(dispatcher) }
+        , diagnostic_id_{ diagnostic_id }
+        , on_terminal_{ std::move(on_terminal) }
     {
         TR_ASSERT(dc_ != nullptr);
         tr_logAddTraceSock(this, fmt::format("socket (WebRTC) initialized for channel label '{}'", dc_->label()));
@@ -55,6 +60,10 @@ public:
 
     ~tr_peer_socket_rtc_impl() override
     {
+        if (!is_closed_)
+        {
+            report_transport_stats("destroyed");
+        }
         if (dc_)
         {
             dc_->onMessage(nullptr, nullptr);
@@ -117,6 +126,26 @@ public:
     [[nodiscard]] std::shared_ptr<rtc::DataChannel> data_channel() const noexcept override
     {
         return dc_;
+    }
+
+    [[nodiscard]] uint64_t diagnostic_id() const noexcept override
+    {
+        return diagnostic_id_;
+    }
+
+    [[nodiscard]] uint64_t bytes_queued() const noexcept override
+    {
+        return bytes_queued_.load();
+    }
+
+    [[nodiscard]] uint64_t bytes_received() const noexcept override
+    {
+        return bytes_received_.load();
+    }
+
+    [[nodiscard]] bool is_closed() const noexcept override
+    {
+        return is_closed_.load();
     }
 
     [[nodiscard]] constexpr Type type() const noexcept override
@@ -184,7 +213,7 @@ private:
 
     void on_incoming_message(void const* data, size_t size)
     {
-        if (size == 0)
+        if (is_closed_ || size == 0)
         {
             return;
         }
@@ -193,6 +222,7 @@ private:
             std::unique_lock lock{ inbuf_mutex_ };
             inbuf_.add(data, size);
         }
+        bytes_received_ += size;
 
         dispatch(
             [weak_self = weak_from_this()]()
@@ -218,7 +248,15 @@ private:
 
     void on_channel_closed()
     {
-        is_closed_ = true;
+        if (is_closed_.exchange(true))
+        {
+            return;
+        }
+        report_transport_stats("closed");
+        if (on_terminal_)
+        {
+            on_terminal_("data-channel-closed");
+        }
         dispatch(
             [weak_self = weak_from_this()]()
             {
@@ -231,16 +269,24 @@ private:
             });
     }
 
-    void on_channel_error(std::string message)
+    void on_channel_error([[maybe_unused]] std::string message)
     {
-        is_closed_ = true;
+        if (is_closed_.exchange(true))
+        {
+            return;
+        }
+        report_transport_stats("error");
+        if (on_terminal_)
+        {
+            on_terminal_("data-channel-error");
+        }
         dispatch(
-            [weak_self = weak_from_this(), msg = std::move(message)]()
+            [weak_self = weak_from_this()]()
             {
                 if (auto self = weak_self.lock())
                 {
                     auto error = tr_error{};
-                    error.set(EIO, msg);
+                    error.set(EIO, "WebRTC data channel error");
                     self->error_cb(error);
                 }
             });
@@ -278,6 +324,7 @@ private:
 
         if (!dc_ || !dc_->isOpen() || is_closed_)
         {
+            on_channel_closed();
             if (error != nullptr)
             {
                 error->set_from_errno(ENOTCONN);
@@ -296,7 +343,21 @@ private:
             return {};
         }
 
-        if (!dc_->send(data_ptr, n_bytes))
+        auto sent = false;
+        try
+        {
+            sent = dc_->send(data_ptr, n_bytes);
+        }
+        catch (std::exception const&)
+        {
+            on_channel_error("WebRTC data channel send failed");
+            if (error != nullptr)
+            {
+                error->set(EIO, "WebRTC data channel send failed");
+            }
+            return {};
+        }
+        if (!sent)
         {
             if (error != nullptr)
             {
@@ -305,12 +366,27 @@ private:
             return {};
         }
 
+        bytes_queued_ += n_bytes;
+        ++messages_queued_;
         buf.drain(n_bytes);
         return n_bytes;
     }
 
+    void report_transport_stats(std::string_view reason) const
+    {
+        tr_logAddInfo(
+            fmt::format("WebRTC transport peer={} close={} queued-bytes={} received-bytes={} sent-messages={}",
+                diagnostic_id_, reason, bytes_queued_.load(), bytes_received_.load(), messages_queued_.load()),
+            "WebTorrent");
+    }
+
     std::shared_ptr<rtc::DataChannel> const dc_;
     Dispatcher const dispatcher_;
+    uint64_t const diagnostic_id_;
+    TerminalCallback const on_terminal_;
+    std::atomic<uint64_t> bytes_queued_{ 0 };
+    std::atomic<uint64_t> bytes_received_{ 0 };
+    std::atomic<uint64_t> messages_queued_{ 0 };
 
     mutable std::mutex inbuf_mutex_;
     PeerBuffer inbuf_;
@@ -330,9 +406,12 @@ tr_peer_socket_rtc::tr_peer_socket_rtc(tr_socket_address const& socket_address)
 std::shared_ptr<tr_peer_socket_rtc> tr_peer_socket_rtc::create(
     tr_socket_address const& socket_address,
     std::shared_ptr<rtc::DataChannel> data_channel,
-    Dispatcher dispatcher)
+    Dispatcher dispatcher,
+    uint64_t diagnostic_id,
+    TerminalCallback on_terminal)
 {
-    auto sock = std::make_shared<tr_peer_socket_rtc_impl>(socket_address, std::move(data_channel), std::move(dispatcher));
+    auto sock = std::make_shared<tr_peer_socket_rtc_impl>(
+        socket_address, std::move(data_channel), std::move(dispatcher), diagnostic_id, std::move(on_terminal));
     sock->init();
     return sock;
 }

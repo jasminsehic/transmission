@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'feature/webtorrent-*'
+      - 'diagnostics/webtorrent-rtc-signaling'
   pull_request:
     paths:
       - 'libtransmission/peer-socket-rtc.*'

@@ -71,6 +71,7 @@ target_sources(libtransmission-test
         web-test.cc
         web-utils-test.cc
         $<$<BOOL:${ENABLE_WEBTORRENT}>:peer-socket-rtc-test.cc>
+        $<$<BOOL:${ENABLE_WEBTORRENT}>:webtorrent-diagnostics-test.cc>
         $<$<BOOL:${ENABLE_WEBTORRENT}>:webtorrent-protocol-test.cc>
         $<$<BOOL:${ENABLE_WEBTORRENT}>:webtorrent-announcer-test.cc>
         $<$<BOOL:${ENABLE_WEBTORRENT}>:webtorrent-e2e-test.cc>)

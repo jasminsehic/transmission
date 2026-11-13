@@ -10,7 +10,9 @@
 #endif
 
 #include <functional>
+#include <cstdint>
 #include <memory>
+#include <string_view>
 
 #include "libtransmission/peer-socket.h"
 
@@ -23,13 +25,19 @@ class tr_peer_socket_rtc : public tr_peer_socket
 {
 public:
     using Dispatcher = std::function<void(std::function<void()>)>;
+    using TerminalCallback = std::function<void(std::string_view)>;
 
     [[nodiscard]] static std::shared_ptr<tr_peer_socket_rtc> create(
         tr_socket_address const& socket_address,
         std::shared_ptr<rtc::DataChannel> data_channel,
-        Dispatcher dispatcher = {});
+        Dispatcher dispatcher = {},
+        uint64_t diagnostic_id = 0,
+        TerminalCallback on_terminal = {});
 
     [[nodiscard]] virtual std::shared_ptr<rtc::DataChannel> data_channel() const noexcept = 0;
+    [[nodiscard]] virtual uint64_t diagnostic_id() const noexcept = 0;
+    [[nodiscard]] virtual uint64_t bytes_queued() const noexcept = 0;
+    [[nodiscard]] virtual uint64_t bytes_received() const noexcept = 0;
 
 protected:
     explicit tr_peer_socket_rtc(tr_socket_address const& socket_address);
