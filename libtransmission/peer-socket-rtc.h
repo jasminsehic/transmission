@@ -10,6 +10,7 @@
 #endif
 
 #include <functional>
+#include <cstdint>
 #include <memory>
 
 #include "libtransmission/peer-socket.h"
@@ -27,9 +28,11 @@ public:
     [[nodiscard]] static std::shared_ptr<tr_peer_socket_rtc> create(
         tr_socket_address const& socket_address,
         std::shared_ptr<rtc::DataChannel> data_channel,
-        Dispatcher dispatcher = {});
+        Dispatcher dispatcher = {},
+        uint64_t diagnostic_id = 0);
 
     [[nodiscard]] virtual std::shared_ptr<rtc::DataChannel> data_channel() const noexcept = 0;
+    [[nodiscard]] virtual uint64_t diagnostic_id() const noexcept = 0;
 
 protected:
     explicit tr_peer_socket_rtc(tr_socket_address const& socket_address);
