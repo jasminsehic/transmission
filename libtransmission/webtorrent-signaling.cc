@@ -515,7 +515,8 @@ struct tr_webtorrent_signaling::State : std::enable_shared_from_this<State>
                     {
                         state->session->queue_session_thread(std::move(callback));
                     }
-                });
+                },
+                diagnostic_id);
             parent->session->addIncoming(std::move(socket));
             ++parent->registered_channels;
             tr_logAddDebug(fmt::format("WebRTC peer={} incoming peer socket submitted to session", diagnostic_id), "WebTorrent");

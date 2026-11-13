@@ -23,6 +23,7 @@
 #include "libtransmission/net.h"
 #include "libtransmission/peer-io.h"
 #include "libtransmission/peer-socket-tcp.h"
+#include "libtransmission/peer-socket-rtc.h"
 #include "libtransmission/peer-socket-utp.h"
 #include "libtransmission/peer-socket.h" // tr_peer_socket, tr_netOpen...
 #include "libtransmission/session.h"
@@ -206,6 +207,12 @@ tr_peerIo::~tr_peerIo()
 
 // Only call this method for a peer IO object managed by shared_ptr,
 // i.e. NEVER call this method in the constructor
+uint64_t tr_peerIo::rtc_diagnostic_id() const noexcept
+{
+    return socket_ && socket_->is_rtc() ?
+        static_cast<tr_peer_socket_rtc const&>(*socket_).diagnostic_id() : 0;
+}
+
 void tr_peerIo::set_socket(std::shared_ptr<tr_peer_socket> socket_in)
 {
     TR_ASSERT(socket_in && socket_in->socket_address().is_valid());
@@ -357,10 +364,13 @@ size_t tr_peerIo::try_write(size_t max)
     {
         if (!can_retry_from_error(error.code()))
         {
-            tr_logAddTraceIo(
-                this,
-                fmt::format("try_write err: wrote:{}, errno:{} ({})", n_written, error.code(), error.message()));
-            call_error_callback(error);
+            if (!socket_->is_rtc() || !socket_->is_closed())
+            {
+                tr_logAddTraceIo(
+                    this,
+                    fmt::format("try_write err: wrote:{}, errno:{} ({})", n_written, error.code(), error.message()));
+                call_error_callback(error);
+            }
         }
     }
     else if (n_written > 0U)
@@ -465,8 +475,11 @@ size_t tr_peerIo::try_read(size_t max)
     {
         if (!can_retry_from_error(error.code()))
         {
-            tr_logAddTraceIo(this, fmt::format("try_read err: n_read:{} errno:{} ({})", n_read, error.code(), error.message()));
-            call_error_callback(error);
+            if (!socket_->is_rtc() || !socket_->is_closed())
+            {
+                tr_logAddTraceIo(this, fmt::format("try_read err: n_read:{} errno:{} ({})", n_read, error.code(), error.message()));
+                call_error_callback(error);
+            }
         }
     }
     else if (!std::empty(buf))
