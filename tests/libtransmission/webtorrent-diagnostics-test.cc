@@ -123,3 +123,24 @@ TEST_F(WebTorrentDiagnosticsTest, RejectsMissingOrMalformedSelectedIceEndpoints)
     EXPECT_FALSE(parse("203.0.113.10:-1"));
     EXPECT_FALSE(parse("not_an_ip:1000"));
 }
+
+TEST_F(WebTorrentDiagnosticsTest, ClassifiesLibraryErrorsWithoutLeakingTheException)
+{
+    using tr_webtorrent_diagnostics::library_error;
+    EXPECT_EQ(library_error("Invalid integer 192.168.1.43 in description"), "invalid-description-integer");
+    EXPECT_EQ(library_error("Unexpected remote answer description in signaling state stable"),
+        "invalid-signaling-state");
+    EXPECT_EQ(library_error("Invalid candidate address sensitive.example:55000"), "invalid-candidate-address");
+    EXPECT_EQ(library_error("Invalid candidate format"), "invalid-candidate-format");
+    EXPECT_EQ(library_error("private ICE password and SDP content abc123"), "other-library-error");
+}
+
+TEST_F(WebTorrentDiagnosticsTest, ClassifiesClientsWithoutExposingIdentifiers)
+{
+    using tr_webtorrent_diagnostics::client_family;
+    EXPECT_EQ(client_family("qBittorrent 5.3.0"), "qbittorrent");
+    EXPECT_EQ(client_family("WebTorrent 0.3.0.0"), "webtorrent");
+    EXPECT_EQ(client_family("BiglyBT 4.1.0.0"), "biglybt");
+    EXPECT_EQ(client_family("Deluge 2.2.0.dev"), "deluge");
+    EXPECT_EQ(client_family("unknown-user-controlled-secret"), "other");
+}
