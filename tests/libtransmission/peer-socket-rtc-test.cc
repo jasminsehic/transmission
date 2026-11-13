@@ -341,14 +341,23 @@ TEST_F(PeerSocketRtcTest, CloseHandling)
     auto const addr2 = *parsed2;
 
     auto sock1 = tr_peer_socket_rtc::create(addr1, dc1);
-    auto sock2 = tr_peer_socket_rtc::create(addr2, dc2);
+    auto terminal_events = std::atomic<int>{ 0 };
+    auto sock2 = tr_peer_socket_rtc::create(addr2, dc2, {}, 42,
+        [&terminal_events](std::string_view reason)
+        {
+            EXPECT_EQ(reason, "data-channel-closed");
+            ++terminal_events;
+        });
+    EXPECT_EQ(sock2->diagnostic_id(), 42U);
 
     bool error_reported = false;
+    auto error_callbacks = 0;
     sock2->set_error_cb(
         [&]([[maybe_unused]] tr_error const& error)
         {
             std::lock_guard lock(cv_m);
             error_reported = true;
+            ++error_callbacks;
             cv.notify_all();
         });
 
@@ -366,4 +375,9 @@ TEST_F(PeerSocketRtcTest, CloseHandling)
     auto const n = sock2->try_read(inbuf, 100, &err);
     EXPECT_EQ(n, 0U);
     EXPECT_EQ(err.code(), ENOTCONN);
+    {
+        std::lock_guard lock(cv_m);
+        EXPECT_EQ(error_callbacks, 1);
+    }
+    EXPECT_EQ(terminal_events.load(), 1);
 }
