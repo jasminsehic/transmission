@@ -771,7 +771,7 @@ void tr_webtorrent_signaling::upkeep()
     }
     for (auto it = state_->peers.begin(); it != state_->peers.end();)
     {
-        auto const& peer = it->second;
+        auto peer = it->second;
         if (!peer->attached && now - peer->created >= OfferLifetime)
         {
             ++state_->peer_expirations;
