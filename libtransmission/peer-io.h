@@ -104,6 +104,13 @@ public:
         return socket_ ? socket_->is_utp() : false;
     }
 
+    [[nodiscard]] auto is_rtc() const noexcept
+    {
+        return socket_ ? socket_->is_rtc() : false;
+    }
+
+    [[nodiscard]] uint64_t rtc_diagnostic_id() const noexcept;
+
     void clear();
 
     [[nodiscard]] bool reconnect();

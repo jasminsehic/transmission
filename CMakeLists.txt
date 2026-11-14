@@ -75,6 +75,7 @@ option(ENABLE_UTILS "Build utils (create, edit, show)" ON)
 option(ENABLE_CLI "Build command-line client" OFF)
 option(ENABLE_TESTS "Build unit tests" ON)
 option(ENABLE_UTP "Build µTP support" ON)
+option(ENABLE_WEBTORRENT "Build WebTorrent (WebRTC) support" OFF)
 option(ENABLE_WERROR "Treat warnings as errors" OFF)
 option(ENABLE_NLS "Enable native language support" ON)
 option(INSTALL_DOC "Build/install documentation" ON)
@@ -580,6 +581,32 @@ if(ENABLE_UTP)
         SUBPROJECT
         CMAKE_ARGS
             -DLIBUTP_SHARED:BOOL=OFF)
+endif()
+
+if(ENABLE_WEBTORRENT)
+    # Keep the existing transports untouched when this optional feature is off.
+    set(NO_MEDIA ON CACHE BOOL "Build libdatachannel without media support" FORCE)
+    set(NO_EXAMPLES ON CACHE BOOL "Do not build libdatachannel examples" FORCE)
+    set(NO_TESTS ON CACHE BOOL "Do not build libdatachannel tests" FORCE)
+    include(FetchContent)
+    FetchContent_Declare(
+        libdatachannel
+        GIT_REPOSITORY https://github.com/jasminsehic/libdatachannel.git
+        # Minimal locale-independent SDP/ICE serialization backport on v0.24.6.
+        GIT_TAG 6d7b16b453f128fe2817e4464e89aca4b47de71e
+        # An immutable commit hash requires a non-shallow FetchContent checkout.
+        GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(libdatachannel)
+
+    # On Windows, libdatachannel's DLL exports STL template instantiations
+    # which conflict with Transmission's static library at link time.
+    # Its static target also exposes RTC_STATIC to consumers.
+    if(WIN32)
+        set(TR_WEBTORRENT_DATACHANNEL_TARGET LibDataChannel::LibDataChannelStatic)
+    else()
+        set(TR_WEBTORRENT_DATACHANNEL_TARGET LibDataChannel::LibDataChannel)
+    endif()
 endif()
 
 tr_add_external_auto_library(B64 libb64
