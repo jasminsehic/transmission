@@ -652,6 +652,7 @@ namespace make_torrent_field_helpers
         peer_map.try_emplace(TR_KEY_is_encrypted, peer.is_encrypted);
         peer_map.try_emplace(TR_KEY_is_incoming, peer.is_incoming);
         peer_map.try_emplace(TR_KEY_is_utp, peer.is_utp);
+        peer_map.try_emplace(TR_KEY_is_web_rtc, peer.is_web_rtc);
         peer_map.try_emplace(TR_KEY_is_uploading_to, peer.is_uploading_to);
         peer_map.try_emplace(TR_KEY_supports_holepunch, peer.supports_holepunch);
         peer_map.try_emplace(TR_KEY_peer_is_choked, peer.peer_is_choked);

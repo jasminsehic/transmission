@@ -56,6 +56,7 @@
 #include "libtransmission/utils.h"
 #include "libtransmission/values.h"
 #include "libtransmission/webseed.h"
+#include "libtransmission/webtorrent-diagnostics.h"
 
 using namespace std::literals;
 using namespace tr::Values;
@@ -534,6 +535,19 @@ public:
     void remove_peer(std::shared_ptr<tr_peerMsgs> const& peer)
     {
         auto const lock = unique_lock();
+
+        if (peer->is_rtc_connection())
+        {
+            auto client = std::array<char, 128>{};
+            tr_clientForId(client.data(), client.size(), peer->peer_id());
+            tr_logAddDebug(
+                fmt::format(
+                    "WebRTC BitTorrent peer removed client-family={} local-seed={} remote-seed={}",
+                    tr_webtorrent_diagnostics::client_family(client.data()),
+                    tor->is_done(),
+                    peer->is_seed()),
+                "WebTorrent");
+        }
 
         peer_disconnect(tor, peer->has(), peer->active_requests);
 
@@ -1496,6 +1510,23 @@ void create_bit_torrent_peer(
     auto* const swarm = manager->get_existing_swarm(result.io->torrent_hash());
     auto info = swarm != nullptr ? swarm->get_existing_peer_info(socket_address) : std::shared_ptr<tr_peer_info>{};
 
+    if (result.io->is_rtc())
+    {
+        auto client = std::array<char, 128>{};
+        if (result.peer_id)
+        {
+            tr_clientForId(client.data(), client.size(), *result.peer_id);
+        }
+        tr_logAddDebug(
+            fmt::format(
+                "WebRTC BitTorrent handshake peer={} success={} client-family={} local-seed={}",
+                result.io->rtc_diagnostic_id(),
+                result.is_connected,
+                tr_webtorrent_diagnostics::client_family(client.data()),
+                swarm != nullptr && swarm->tor->is_done()),
+            "WebTorrent");
+    }
+
     if (result.io->is_incoming())
     {
         manager->incoming_handshakes.erase(socket_address);
@@ -1658,12 +1689,13 @@ void tr_peerMgrAddIncoming(tr_peerMgr* manager, std::shared_ptr<tr_peer_socket> 
     else if (!manager->incoming_handshakes.contains(socket->socket_address())) // we don't have a connection to them yet...
     {
         auto const& socket_address = socket->socket_address();
+        auto const is_rtc = socket->is_rtc();
         auto* const session = manager->session;
         manager->incoming_handshakes.try_emplace(
             socket_address,
             &manager->handshake_mediator_,
             tr_peerIo::new_incoming(session, &session->top_bandwidth_, std::move(socket)),
-            session->encryptionMode(),
+            is_rtc ? TR_CLEAR_PREFERRED : session->encryptionMode(),
             [manager](tr_handshake::Result const& result) { return on_handshake_done(manager, result); });
     }
 }
@@ -1794,7 +1826,9 @@ std::vector<tr_pex> tr_peerMgrGetPeers(tr_torrent const* tor, uint8_t address_ty
         infos.reserve(std::size(peers));
         for (auto const& peer : peers)
         {
-            if (peer->socket_address().address().type == address_type)
+            // WebRTC's internal socket addresses are not dialable by TCP/µTP peers.
+            // Never advertise them via compact PEX.
+            if (!peer->is_rtc_connection() && peer->socket_address().address().type == address_type)
             {
                 infos.emplace_back(peer->peer_info.get());
             }
@@ -1984,6 +2018,7 @@ namespace peer_stat_helpers
     stats.from = peer->peer_info->from_first();
     stats.progress = peer->percent_done();
     stats.is_utp = peer->is_utp_connection();
+    stats.is_web_rtc = peer->is_rtc_connection();
     stats.is_encrypted = peer->is_encrypted();
     stats.rate_to_peer = peer->get_piece_speed(now_msec, tr_direction::ClientToPeer);
     stats.rate_to_client = peer->get_piece_speed(now_msec, tr_direction::PeerToClient);
@@ -2014,6 +2049,10 @@ namespace peer_stat_helpers
     if (stats.is_utp)
     {
         stats.flag_str.push_back('T');
+    }
+    if (stats.is_web_rtc)
+    {
+        stats.flag_str.push_back('W');
     }
 
     if (peer->swarm->optimistic == peer)

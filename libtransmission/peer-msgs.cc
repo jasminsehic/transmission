@@ -308,8 +308,8 @@ public:
         tr_peer_id_t peer_id,
         tr_peer_callback_bt callback,
         void* callback_data)
-        : tr_peerMsgs{ torrent_in,           std::move(peer_info_in), peer_id, io_in->is_encrypted(),
-                       io_in->is_incoming(), io_in->is_utp() }
+        : tr_peerMsgs{ torrent_in,           std::move(peer_info_in), peer_id,        io_in->is_encrypted() || io_in->is_rtc(),
+                       io_in->is_incoming(), io_in->is_utp(),         io_in->is_rtc() }
         , tor_{ torrent_in }
         , io_{ std::move(io_in) }
         , have_{ torrent_in.piece_count() }
@@ -660,7 +660,7 @@ private:
     [[nodiscard]] constexpr bool can_send_ut_pex() const noexcept
     {
         // only send pex if both the torrent and peer support it
-        return tor_.allows_pex() && ut_pex_id_ != 0U;
+        return tor_.allows_pex() && !is_rtc_connection() && ut_pex_id_ != 0U;
     }
 
     void send_ut_pex();
@@ -1006,7 +1006,7 @@ void tr_peerMsgsImpl::parse_ltep(MessageReader& payload)
 
 void tr_peerMsgsImpl::parse_ut_pex(MessageReader& payload)
 {
-    if (!tor_.allows_pex())
+    if (is_rtc_connection() || !tor_.allows_pex())
     {
         if (tor_.is_private())
         {
@@ -1225,33 +1225,36 @@ void tr_peerMsgsImpl::send_ltep_handshake()
     bool const allow_metadata_xfer = tor_.is_public();
 
     /* decide if we want to advertise pex support */
-    bool const allow_pex = tor_.allows_pex();
+    bool const allow_pex = tor_.allows_pex() && !is_rtc_connection();
 
     /* decide if we want to advertise holepunch support (bep 55) */
-    bool const allow_holepunch = tor_.allows_holepunch();
+    bool const allow_holepunch = tor_.allows_holepunch() && !is_rtc_connection();
 
     auto val = tr_variant::Map{ 8U };
     val.try_emplace(TR_KEY_e, session->encryptionMode() != TR_CLEAR_PREFERRED);
 
-    // If connecting to global peer, then use global address
-    // Otherwise we are connecting to local peer, use bind address directly
-    if (auto const addr = io_->address().is_global_unicast() ? session->global_address(TR_AF_INET) :
-                                                               session->bind_address(TR_AF_INET);
-        addr && !addr->is_any())
+    if (!is_rtc_connection())
     {
-        TR_ASSERT(addr->is_ipv4());
-        val.try_emplace(
-            TR_KEY_ipv4,
-            std::string_view{ reinterpret_cast<char const*>(&addr->addr.addr4), sizeof(addr->addr.addr4) });
-    }
-    if (auto const addr = io_->address().is_global_unicast() ? session->global_address(TR_AF_INET6) :
-                                                               session->bind_address(TR_AF_INET6);
-        addr && !addr->is_any())
-    {
-        TR_ASSERT(addr->is_ipv6());
-        val.try_emplace(
-            TR_KEY_ipv6,
-            std::string_view{ reinterpret_cast<char const*>(&addr->addr.addr6), sizeof(addr->addr.addr6) });
+        // If connecting to global peer, then use global address
+        // Otherwise we are connecting to local peer, use bind address directly
+        if (auto const addr = io_->address().is_global_unicast() ? session->global_address(TR_AF_INET) :
+                                                                   session->bind_address(TR_AF_INET);
+            addr && !addr->is_any())
+        {
+            TR_ASSERT(addr->is_ipv4());
+            val.try_emplace(
+                TR_KEY_ipv4,
+                std::string_view{ reinterpret_cast<char const*>(&addr->addr.addr4), sizeof(addr->addr.addr4) });
+        }
+        if (auto const addr = io_->address().is_global_unicast() ? session->global_address(TR_AF_INET6) :
+                                                                   session->bind_address(TR_AF_INET6);
+            addr && !addr->is_any())
+        {
+            TR_ASSERT(addr->is_ipv6());
+            val.try_emplace(
+                TR_KEY_ipv6,
+                std::string_view{ reinterpret_cast<char const*>(&addr->addr.addr6), sizeof(addr->addr.addr6) });
+        }
     }
 
     // https://www.bittorrent.org/beps/bep_0009.html
@@ -1268,7 +1271,10 @@ void tr_peerMsgsImpl::send_ltep_handshake()
     // port number of the other side. Note that there is no need for the
     // receiving side of the connection to send this extension message,
     // since its port number is already known.
-    val.try_emplace(TR_KEY_p, session->advertisedPeerPort().host());
+    if (!is_rtc_connection())
+    {
+        val.try_emplace(TR_KEY_p, session->advertisedPeerPort().host());
+    }
 
     // https://www.bittorrent.org/beps/bep_0010.html
     // An integer, the number of outstanding request messages this
@@ -1282,6 +1288,7 @@ void tr_peerMsgsImpl::send_ltep_handshake()
     {
         auto buf = std::array<std::byte, TrAddrStrlen>{};
         auto const begin = std::data(buf);
+        // WebRTC uses the actual selected remote ICE endpoint for this field.
         auto const end = io_->address().to_compact(begin);
         auto const len = static_cast<size_t>(end - begin);
         TR_ASSERT(len == tr_address::CompactAddrBytes[0] || len == tr_address::CompactAddrBytes[1]);
@@ -1359,7 +1366,7 @@ void tr_peerMsgsImpl::parse_ltep_handshake(MessageReader& payload)
     {
         if (tor_.is_public())
         {
-            if (auto const ut_pex = sub->value_if<int64_t>(TR_KEY_ut_pex))
+            if (auto const ut_pex = sub->value_if<int64_t>(TR_KEY_ut_pex); ut_pex && !is_rtc_connection())
             {
                 ut_pex_id_ = static_cast<uint8_t>(*ut_pex);
                 logtrace(this, fmt::format("msgs->ut_pex is {:d}", ut_pex_id_));
@@ -1372,7 +1379,7 @@ void tr_peerMsgsImpl::parse_ltep_handshake(MessageReader& payload)
             }
         }
 
-        if (auto const ut_holepunch = sub->value_if<uint8_t>(TR_KEY_ut_holepunch))
+        if (auto const ut_holepunch = sub->value_if<uint8_t>(TR_KEY_ut_holepunch); ut_holepunch && !is_rtc_connection())
         {
             ut_holepunch_id_ = *ut_holepunch;
             holepunch_supported = *ut_holepunch != 0;
@@ -1438,13 +1445,13 @@ void tr_peerMsgsImpl::parse_ltep_handshake(MessageReader& payload)
     }
 
     /* get peer's listening port */
-    if (auto const p = map->value_if<int64_t>(TR_KEY_p).value_or(0); p > 0)
+    if (auto const p = map->value_if<int64_t>(TR_KEY_p).value_or(0); p > 0 && !is_rtc_connection())
     {
         publish(tr_peer_event::GotPort(tr_port::from_host(p)));
         logtrace(this, fmt::format("peer's port is now {:d}", p));
     }
 
-    if (io_->is_incoming())
+    if (io_->is_incoming() && !is_rtc_connection())
     {
         if (auto const addr_compact = map->value_if<std::string_view>(TR_KEY_ipv4);
             addr_compact && std::size(*addr_compact) == tr_address::CompactAddrBytes[TR_AF_INET])
@@ -1691,7 +1698,10 @@ ReadResult tr_peerMsgsImpl::process_peer_message(uint8_t id, MessageReader& payl
             if (auto const dht_port = tr_port::from_host(hport); !std::empty(dht_port))
             {
                 dht_port_ = dht_port;
-                session->maybe_add_dht_node(io_->address(), dht_port_);
+                if (!is_rtc_connection())
+                {
+                    session->maybe_add_dht_node(io_->address(), dht_port_);
+                }
             }
         }
         break;
@@ -2325,13 +2335,15 @@ tr_peerMsgs::tr_peerMsgs(
     tr_peer_id_t peer_id,
     bool connection_is_encrypted,
     bool connection_is_incoming,
-    bool connection_is_utp)
+    bool connection_is_utp,
+    bool connection_is_rtc)
     : tr_peer{ tor }
     , peer_info{ std::move(peer_info_in) }
     , peer_id_{ peer_id }
     , connection_is_encrypted_{ connection_is_encrypted }
     , connection_is_incoming_{ connection_is_incoming }
     , connection_is_utp_{ connection_is_utp }
+    , connection_is_rtc_{ connection_is_rtc }
 {
     auto client = tr_interned_string{};
     if (peer_id != tr_peer_id_t{})
