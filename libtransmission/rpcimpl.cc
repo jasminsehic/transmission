@@ -2663,10 +2663,7 @@ using SessionAccessors = std::pair<SessionGetter, SessionSetter>;
 
     map.try_emplace(
         TR_KEY_webtorrent_ice_servers,
-        [](tr_session const& src) -> tr_variant
-        {
-            return tr::serializer::to_variant(src.settings().webtorrent_ice_servers);
-        },
+        [](tr_session const& src) -> tr_variant { return tr::serializer::to_variant(src.settings().webtorrent_ice_servers); },
         [](tr_session& tgt, tr_variant const& src, ErrorInfo& err)
         {
             if (auto val = tr::serializer::to_value<std::vector<std::string>>(src))

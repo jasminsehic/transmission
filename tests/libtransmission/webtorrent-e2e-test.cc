@@ -181,10 +181,36 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
                     {
                         return;
                     }
-                    // Respond to one of the offers as a browser-style WebRTC peer.
-                    auto remote = std::make_shared<rtc::PeerConnection>(rtc::Configuration{});
+                    auto offer = rtc::Description(first["offer"]["sdp"].GetString(), rtc::Description::Type::Offer);
+                    auto config = rtc::Configuration{};
+                    // A single bound interface makes the local ICE endpoint unambiguous.
+                    for (auto candidate : offer.candidates())
+                    {
+                        if (candidate.type() == rtc::Candidate::Type::Host && candidate.resolve())
+                        {
+                            if (auto const address = candidate.address())
+                            {
+                                config.bindAddress = address;
+                                if (auto const ip = tr_address::from_string(*address); ip && ip->is_ipv4())
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (!config.bindAddress)
+                    {
+                        return;
+                    }
+
+                    auto remote = std::shared_ptr<rtc::PeerConnection>{};
                     {
                         auto guard = std::lock_guard{ state->mutex };
+                        if (!state->peers.empty())
+                        {
+                            return;
+                        }
+                        remote = std::make_shared<rtc::PeerConnection>(config);
                         state->peers.emplace_back(remote);
                     }
                     remote->onDataChannel(
@@ -367,8 +393,7 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
                         });
 
                     // libdatachannel's default automatic negotiation creates the answer here.
-                    remote->setRemoteDescription(
-                        rtc::Description(first["offer"]["sdp"].GetString(), rtc::Description::Type::Offer));
+                    remote->setRemoteDescription(std::move(offer));
                 });
         });
 

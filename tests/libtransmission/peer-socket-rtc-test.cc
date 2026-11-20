@@ -307,7 +307,7 @@ TEST_F(PeerSocketRtcTest, BlockDataTransfer)
     EXPECT_EQ(received_block, block);
 
     // Fill the send queue, then resume reads and verify every accepted byte.
-    auto payload = std::vector<std::byte>(8U * 1024U * 1024U);
+    auto payload = std::vector<std::byte>(size_t{ 8U } * 1024U * 1024U);
     for (size_t i = 0; i < std::size(payload); ++i)
     {
         payload[i] = static_cast<std::byte>((i + i / 257U) & 0xFFU);
