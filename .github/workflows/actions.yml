@@ -554,6 +554,8 @@ jobs:
         run: |
           set -euo pipefail
           test ! -d src/build-xcode-webtorrent
+          app="$(find pfx/Build/Products -path '*/Transmission.app/Contents/MacOS/Transmission' -print -quit)"
+          xcrun otool -L "$app" | grep -q '/usr/lib/libcurl'
           if find pfx/Build/Products -name 'libwebtorrent-*.a' | grep -q .; then
             echo "Unexpected native WebTorrent dependency archive"
             exit 1

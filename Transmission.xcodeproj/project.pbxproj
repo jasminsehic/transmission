@@ -483,27 +483,35 @@
 		FA7E00000000000000000027 /* rtc-signaling.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000007 /* rtc-signaling.cc */; };
 		FA7E0000000000000000002A /* peer-socket-rtc.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E0000000000000000000A /* peer-socket-rtc.cc */; };
 		FA7E000000000000000000A7 /* libcurl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libcurl.a */; };
+		ED5E0EA02CD3147B0071433B /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		FAAF00000000000000001410 /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001400 /* libssl.a */; };
 		FAAF00000000000000001411 /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001401 /* libcrypto.a */; };
 		FA7E000000000000000000A6 /* libcurl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libcurl.a */; };
+		C8B27B9A28153F3400A22B5D /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		FAAF0000000000000000140E /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001400 /* libssl.a */; };
 		FAAF0000000000000000140F /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001401 /* libcrypto.a */; };
 		FA7E000000000000000000A5 /* libcurl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libcurl.a */; };
+		C8B27B8928153F3100A22B5D /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		FAAF0000000000000000140C /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001400 /* libssl.a */; };
 		FAAF0000000000000000140D /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001401 /* libcrypto.a */; };
 		FA7E000000000000000000A4 /* libcurl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libcurl.a */; };
+		C8B27B7828153F2B00A22B5D /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		FAAF0000000000000000140A /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001400 /* libssl.a */; };
 		FAAF0000000000000000140B /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001401 /* libcrypto.a */; };
 		FA7E000000000000000000A3 /* libcurl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libcurl.a */; };
+		5586996C2570759F00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		FAAF00000000000000001408 /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001400 /* libssl.a */; };
 		FAAF00000000000000001409 /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001401 /* libcrypto.a */; };
 		FA7E000000000000000000A2 /* libcurl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libcurl.a */; };
+		558699602570759F00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		FAAF00000000000000001406 /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001400 /* libssl.a */; };
 		FAAF00000000000000001407 /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001401 /* libcrypto.a */; };
 		FA7E000000000000000000A1 /* libcurl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libcurl.a */; };
+		55869926257074EC00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		FAAF00000000000000001404 /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001400 /* libssl.a */; };
 		FAAF00000000000000001405 /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001401 /* libcrypto.a */; };
 		FA7E000000000000000000A0 /* libcurl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libcurl.a */; };
+		558699542570759E00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		FAAF00000000000000001402 /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001400 /* libssl.a */; };
 		FAAF00000000000000001403 /* libcrypto.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAAF00000000000000001401 /* libcrypto.a */; };
 		FA7E00000000000000000050 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
@@ -1668,6 +1676,7 @@
 		FA7E0000000000000000000A /* peer-socket-rtc.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "peer-socket-rtc.cc"; sourceTree = "<group>"; };
 		FA7E0000000000000000000B /* peer-socket-rtc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "peer-socket-rtc.h"; sourceTree = "<group>"; };
 		FA7E00000000000000000041 /* libcurl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "build-xcode-webtorrent/lib/libcurl.a"; sourceTree = SOURCE_ROOT; };
+		55869925257074EC00F77A43 /* libcurl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurl.tbd; path = usr/lib/libcurl.tbd; sourceTree = SDKROOT; };
 		FAAF00000000000000001400 /* libssl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "build-xcode-webtorrent/lib/libssl.a"; sourceTree = SOURCE_ROOT; };
 		FAAF00000000000000001401 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "build-xcode-webtorrent/lib/libcrypto.a"; sourceTree = SOURCE_ROOT; };
 		FA7E00000000000000000043 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
@@ -1806,6 +1815,7 @@
 				FAAF00000000000000001311 /* libwebtorrent-juice.a in Frameworks */,
 				FAAF00000000000000001312 /* libwebtorrent-usrsctp.a in Frameworks */,
 				FA7E000000000000000000A0 /* libcurl.a in Frameworks */,
+				558699542570759E00F77A43 /* libcurl.tbd in Frameworks */,
 				FAAF00000000000000001402 /* libssl.a in Frameworks */,
 				FAAF00000000000000001403 /* libcrypto.a in Frameworks */,
 				C88771AE2803EE7C005C7523 /* libz.tbd in Frameworks */,
@@ -1828,6 +1838,7 @@
 				FAAF00000000000000001314 /* libwebtorrent-juice.a in Frameworks */,
 				FAAF00000000000000001315 /* libwebtorrent-usrsctp.a in Frameworks */,
 				FA7E000000000000000000A1 /* libcurl.a in Frameworks */,
+				55869926257074EC00F77A43 /* libcurl.tbd in Frameworks */,
 				FAAF00000000000000001404 /* libssl.a in Frameworks */,
 				FAAF00000000000000001405 /* libcrypto.a in Frameworks */,
 				A24F19080A3A790800C9C145 /* Sparkle.framework in Frameworks */,
@@ -1894,6 +1905,7 @@
 				FAAF00000000000000001317 /* libwebtorrent-juice.a in Frameworks */,
 				FAAF00000000000000001318 /* libwebtorrent-usrsctp.a in Frameworks */,
 				FA7E000000000000000000A2 /* libcurl.a in Frameworks */,
+				558699602570759F00F77A43 /* libcurl.tbd in Frameworks */,
 				FAAF00000000000000001406 /* libssl.a in Frameworks */,
 				FAAF00000000000000001407 /* libcrypto.a in Frameworks */,
 				C88771AF2803EE7D005C7523 /* libz.tbd in Frameworks */,
@@ -1913,6 +1925,7 @@
 				FAAF0000000000000000131A /* libwebtorrent-juice.a in Frameworks */,
 				FAAF0000000000000000131B /* libwebtorrent-usrsctp.a in Frameworks */,
 				FA7E000000000000000000A3 /* libcurl.a in Frameworks */,
+				5586996C2570759F00F77A43 /* libcurl.tbd in Frameworks */,
 				FAAF00000000000000001408 /* libssl.a in Frameworks */,
 				FAAF00000000000000001409 /* libcrypto.a in Frameworks */,
 				C88771B02803EE7D005C7523 /* libz.tbd in Frameworks */,
@@ -1960,6 +1973,7 @@
 				FAAF0000000000000000131D /* libwebtorrent-juice.a in Frameworks */,
 				FAAF0000000000000000131E /* libwebtorrent-usrsctp.a in Frameworks */,
 				FA7E000000000000000000A4 /* libcurl.a in Frameworks */,
+				C8B27B7828153F2B00A22B5D /* libcurl.tbd in Frameworks */,
 				FAAF0000000000000000140A /* libssl.a in Frameworks */,
 				FAAF0000000000000000140B /* libcrypto.a in Frameworks */,
 				C8B27B7728153F2B00A22B5D /* libz.tbd in Frameworks */,
@@ -1979,6 +1993,7 @@
 				FAAF00000000000000001320 /* libwebtorrent-juice.a in Frameworks */,
 				FAAF00000000000000001321 /* libwebtorrent-usrsctp.a in Frameworks */,
 				FA7E000000000000000000A5 /* libcurl.a in Frameworks */,
+				C8B27B8928153F3100A22B5D /* libcurl.tbd in Frameworks */,
 				FAAF0000000000000000140C /* libssl.a in Frameworks */,
 				FAAF0000000000000000140D /* libcrypto.a in Frameworks */,
 				C8B27B8828153F3100A22B5D /* libz.tbd in Frameworks */,
@@ -1998,6 +2013,7 @@
 				FAAF00000000000000001323 /* libwebtorrent-juice.a in Frameworks */,
 				FAAF00000000000000001324 /* libwebtorrent-usrsctp.a in Frameworks */,
 				FA7E000000000000000000A6 /* libcurl.a in Frameworks */,
+				C8B27B9A28153F3400A22B5D /* libcurl.tbd in Frameworks */,
 				FAAF0000000000000000140E /* libssl.a in Frameworks */,
 				FAAF0000000000000000140F /* libcrypto.a in Frameworks */,
 				C8B27B9928153F3400A22B5D /* libz.tbd in Frameworks */,
@@ -2018,6 +2034,7 @@
 				FAAF00000000000000001326 /* libwebtorrent-juice.a in Frameworks */,
 				FAAF00000000000000001327 /* libwebtorrent-usrsctp.a in Frameworks */,
 				FA7E000000000000000000A7 /* libcurl.a in Frameworks */,
+				ED5E0EA02CD3147B0071433B /* libcurl.tbd in Frameworks */,
 				FAAF00000000000000001410 /* libssl.a in Frameworks */,
 				FAAF00000000000000001411 /* libcrypto.a in Frameworks */,
 				FA7E00000000000000000057 /* SystemConfiguration.framework in Frameworks */,
@@ -2568,6 +2585,7 @@
 				EDD735D52D83087400852628 /* UniformTypeIdentifiers.framework */,
 				C87369642809984200573C90 /* UserNotifications.framework */,
 				FA7E00000000000000000041 /* libcurl.a */,
+				55869925257074EC00F77A43 /* libcurl.tbd */,
 				FAAF00000000000000001400 /* libssl.a */,
 				FAAF00000000000000001401 /* libcrypto.a */,
 				FA7E00000000000000000043 /* SystemConfiguration.framework */,
@@ -5085,7 +5103,7 @@
 				WEBTORRENT_CFLAGS_NO = "";
 				WEBTORRENT_EXCLUDED_TARGETS_YES = "";
 				WEBTORRENT_EXCLUDED_TARGETS_NO = "webtorrent-* WebTorrent*";
-				WEBTORRENT_EXCLUDED_FILES_YES = "";
+				WEBTORRENT_EXCLUDED_FILES_YES = "libcurl.tbd";
 				WEBTORRENT_EXCLUDED_FILES_NO = "announcer-ws.cc announcer-ws-protocol.cc websocket-client.cc rtc-signaling.cc peer-socket-rtc.cc libwebtorrent-*.a libcurl.a libssl.a libcrypto.a";
 				GCC_UNROLL_LOOPS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
@@ -5307,7 +5325,7 @@
 				WEBTORRENT_CFLAGS_NO = "";
 				WEBTORRENT_EXCLUDED_TARGETS_YES = "";
 				WEBTORRENT_EXCLUDED_TARGETS_NO = "webtorrent-* WebTorrent*";
-				WEBTORRENT_EXCLUDED_FILES_YES = "";
+				WEBTORRENT_EXCLUDED_FILES_YES = "libcurl.tbd";
 				WEBTORRENT_EXCLUDED_FILES_NO = "announcer-ws.cc announcer-ws-protocol.cc websocket-client.cc rtc-signaling.cc peer-socket-rtc.cc libwebtorrent-*.a libcurl.a libssl.a libcrypto.a";
 				GCC_UNROLL_LOOPS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
@@ -5421,7 +5439,7 @@
 				WEBTORRENT_CFLAGS_NO = "";
 				WEBTORRENT_EXCLUDED_TARGETS_YES = "";
 				WEBTORRENT_EXCLUDED_TARGETS_NO = "webtorrent-* WebTorrent*";
-				WEBTORRENT_EXCLUDED_FILES_YES = "";
+				WEBTORRENT_EXCLUDED_FILES_YES = "libcurl.tbd";
 				WEBTORRENT_EXCLUDED_FILES_NO = "announcer-ws.cc announcer-ws-protocol.cc websocket-client.cc rtc-signaling.cc peer-socket-rtc.cc libwebtorrent-*.a libcurl.a libssl.a libcrypto.a";
 				GCC_UNROLL_LOOPS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
