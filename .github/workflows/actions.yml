@@ -511,8 +511,6 @@ jobs:
         with:
           path: src
           submodules: recursive
-      - name: Build WebTorrent dependencies
-        run: bash src/release/macos/build-webtorrent-deps.sh
       - name: Build
         run: |
           set -o pipefail

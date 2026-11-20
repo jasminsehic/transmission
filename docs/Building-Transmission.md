@@ -217,4 +217,4 @@ Initialize Git submodules recursively to build the bundled dependencies. `USE_SY
 
 Windows installers use the existing `pack-msi` target. See [Configuration Files](Configuration-Files.md) for runtime settings.
 
-For native macOS Xcode builds, initialize the submodules recursively, install CMake and Ninja, and run `bash release/macos/build-webtorrent-deps.sh` from the repository root before opening the Xcode project. The script builds pinned WebSocket-enabled libcurl, OpenSSL, and bundled libdatachannel as a universal static archive for arm64 and x86_64. The Xcode build uses the resulting archive and headers in `build-xcode-webtorrent/`.
+For native macOS Xcode builds, initialize the submodules recursively and install CMake and Ninja. The Xcode project builds bundled libdatachannel, libjuice, and usrsctp as native static-library targets. Its WebTorrent network-dependencies target automatically builds pinned WebSocket-enabled libcurl and OpenSSL through CMake for both arm64 and x86_64. No separate dependency script is required. Generated headers and the universal libcurl/OpenSSL archive are placed in `build-xcode-webtorrent/`.
