@@ -20,14 +20,8 @@ macro(tr_setup_gtest_target TARGET_NAME TEST_PREFIX)
     endif()
 
     if(NOT CMAKE_CROSSCOMPILING OR CMAKE_CROSSCOMPILING_EMULATOR)
-        if(WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64)$")
-            set(TR_GTEST_DISCOVERY_TIMEOUT 60)
-        else()
-            set(TR_GTEST_DISCOVERY_TIMEOUT 5)
-        endif()
         gtest_discover_tests(${TARGET_NAME}
-            TEST_PREFIX "${TEST_PREFIX}"
-            DISCOVERY_TIMEOUT ${TR_GTEST_DISCOVERY_TIMEOUT})
+            TEST_PREFIX "${TEST_PREFIX}")
     else()
         add_test(
             NAME ${TARGET_NAME}
