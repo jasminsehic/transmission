@@ -514,7 +514,15 @@ jobs:
       - name: Build WebTorrent dependencies
         run: bash src/release/macos/build-webtorrent-deps.sh
       - name: Build
-        run: set -o pipefail && xcodebuild -project src/Transmission.xcodeproj -scheme Transmission -configuration 'Release - Debug' -derivedDataPath pfx ONLY_ACTIVE_ARCH=NO build | xcbeautify --renderer github-actions
+        run: |
+          set -o pipefail
+          xcodebuild -project src/Transmission.xcodeproj -scheme Transmission -configuration 'Release - Debug' -derivedDataPath pfx ONLY_ACTIVE_ARCH=NO build 2>&1 | tee xcodebuild.log | xcbeautify --renderer github-actions
+      - name: Upload Xcode build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: xcodebuild-native-log
+          path: xcodebuild.log
       - name: Verify native WebTorrent linkage
         run: |
           set -euo pipefail

@@ -471,7 +471,14 @@
 		FA7E00000000000000000025 /* websocket-client.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000005 /* websocket-client.cc */; };
 		FA7E00000000000000000027 /* rtc-signaling.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000007 /* rtc-signaling.cc */; };
 		FA7E0000000000000000002A /* peer-socket-rtc.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E0000000000000000000A /* peer-socket-rtc.cc */; };
-		FA7E00000000000000000042 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E000000000000000000A7 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E000000000000000000A6 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E000000000000000000A5 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E000000000000000000A4 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E000000000000000000A3 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E000000000000000000A2 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E000000000000000000A1 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E000000000000000000A0 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
 		FA7E00000000000000000050 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
 		FA7E00000000000000000060 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2E669780F5B8E5A00B4251A /* Security.framework */; };
 		FA7E00000000000000000051 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
@@ -1478,6 +1485,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D9A2BF009E16D21002D0FF9 /* libtransmission.a in Frameworks */,
+				FA7E000000000000000000A0 /* libwebtorrent-deps.a in Frameworks */,
 				C88771AE2803EE7C005C7523 /* libz.tbd in Frameworks */,
 				FA7E00000000000000000050 /* SystemConfiguration.framework in Frameworks */,
 				FA7E00000000000000000060 /* Security.framework in Frameworks */,
@@ -1494,6 +1502,7 @@
 				C87369652809984200573C90 /* UserNotifications.framework in Frameworks */,
 				8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */,
 				4D1838DD09DEC0E80047D688 /* libtransmission.a in Frameworks */,
+				FA7E000000000000000000A1 /* libwebtorrent-deps.a in Frameworks */,
 				A24F19080A3A790800C9C145 /* Sparkle.framework in Frameworks */,
 				C88771B52803EEB1005C7523 /* libiconv.tbd in Frameworks */,
 				FA7E00000000000000000051 /* SystemConfiguration.framework in Frameworks */,
@@ -1544,7 +1553,6 @@
 				A22CFCCB0FC24FDA0009BD3E /* libdht.a in Frameworks */,
 				A267927C130DFF2700CB7464 /* libutp.a in Frameworks */,
 				BE75C38A0C72A1ED00DBEFE0 /* libevent.a in Frameworks */,
-				FA7E00000000000000000042 /* libwebtorrent-deps.a in Frameworks */,
 				BE1183780CE161390002D0F3 /* libminiupnp.a in Frameworks */,
 				A226FDAC0D0CDF20005A7F71 /* libnatpmp.a in Frameworks */,
 			);
@@ -1555,6 +1563,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BEFC1C050C07753500B0BB3C /* libtransmission.a in Frameworks */,
+				FA7E000000000000000000A2 /* libwebtorrent-deps.a in Frameworks */,
 				C88771AF2803EE7D005C7523 /* libz.tbd in Frameworks */,
 				FA7E00000000000000000052 /* SystemConfiguration.framework in Frameworks */,
 				FA7E00000000000000000062 /* Security.framework in Frameworks */,
@@ -1568,6 +1577,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BEFC1D2D0C0783D900B0BB3C /* libtransmission.a in Frameworks */,
+				FA7E000000000000000000A3 /* libwebtorrent-deps.a in Frameworks */,
 				C88771B02803EE7D005C7523 /* libz.tbd in Frameworks */,
 				FA7E00000000000000000053 /* SystemConfiguration.framework in Frameworks */,
 				FA7E00000000000000000063 /* Security.framework in Frameworks */,
@@ -1609,6 +1619,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C8B27B7628153F2B00A22B5D /* libtransmission.a in Frameworks */,
+				FA7E000000000000000000A4 /* libwebtorrent-deps.a in Frameworks */,
 				C8B27B7728153F2B00A22B5D /* libz.tbd in Frameworks */,
 				FA7E00000000000000000054 /* SystemConfiguration.framework in Frameworks */,
 				FA7E00000000000000000064 /* Security.framework in Frameworks */,
@@ -1622,6 +1633,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C8B27B8728153F3100A22B5D /* libtransmission.a in Frameworks */,
+				FA7E000000000000000000A5 /* libwebtorrent-deps.a in Frameworks */,
 				C8B27B8828153F3100A22B5D /* libz.tbd in Frameworks */,
 				FA7E00000000000000000055 /* SystemConfiguration.framework in Frameworks */,
 				FA7E00000000000000000065 /* Security.framework in Frameworks */,
@@ -1635,6 +1647,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C8B27B9828153F3400A22B5D /* libtransmission.a in Frameworks */,
+				FA7E000000000000000000A6 /* libwebtorrent-deps.a in Frameworks */,
 				C8B27B9928153F3400A22B5D /* libz.tbd in Frameworks */,
 				FA7E00000000000000000056 /* SystemConfiguration.framework in Frameworks */,
 				FA7E00000000000000000066 /* Security.framework in Frameworks */,
@@ -1649,6 +1662,7 @@
 			files = (
 				ED5E0E7E2CD30B180071433B /* Quartz.framework in Frameworks */,
 				ED5E0E9D2CD3134B0071433B /* libtransmission.a in Frameworks */,
+				FA7E000000000000000000A7 /* libwebtorrent-deps.a in Frameworks */,
 				FA7E00000000000000000057 /* SystemConfiguration.framework in Frameworks */,
 				FA7E00000000000000000067 /* Security.framework in Frameworks */,
 				FA7E00000000000000000070 /* libz.tbd in Frameworks */,
