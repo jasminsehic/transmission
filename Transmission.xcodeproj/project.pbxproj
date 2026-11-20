@@ -65,11 +65,6 @@
 		4DE5CCCB0981D9BE00BE280E /* Defaults.plist in Resources */ = {isa = PBXBuildFile; fileRef = 4DE5CCCA0981D9BE00BE280E /* Defaults.plist */; };
 		4DF0C5AB0899190500DD8943 /* Controller.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4DF0C5A90899190500DD8943 /* Controller.mm */; };
 		4DFBC2DF09C0970D00D5C571 /* Torrent.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4DFBC2DE09C0970D00D5C571 /* Torrent.mm */; };
-		55869926257074EC00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
-		55869932257074FE00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
-		558699542570759E00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
-		558699602570759F00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
-		5586996C2570759F00F77A43 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		62F644738FE3D8788EBF73A9 /* block-info.cc in Sources */ = {isa = PBXBuildFile; fileRef = A54D44C6A7AAF131D9AE29F5 /* block-info.cc */; };
 		66F977825E65AD498C028BB0 /* announce-list.cc in Sources */ = {isa = PBXBuildFile; fileRef = 66F977825E65AD498C028BB1 /* announce-list.cc */; };
 		66F977825E65AD498C028BB2 /* announce-list.h in Headers */ = {isa = PBXBuildFile; fileRef = 66F977825E65AD498C028BB3 /* announce-list.h */; };
@@ -410,17 +405,14 @@
 		C88771B62803EEB5005C7523 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C88771A92803EE42005C7523 /* libz.tbd */; };
 		C8B27B7628153F2B00A22B5D /* libtransmission.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D18389709DEC0030047D688 /* libtransmission.a */; };
 		C8B27B7728153F2B00A22B5D /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C88771A92803EE42005C7523 /* libz.tbd */; };
-		C8B27B7828153F2B00A22B5D /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		C8B27B7928153F2B00A22B5D /* libiconv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C88771AB2803EE53005C7523 /* libiconv.tbd */; };
 		C8B27B7A28153F2B00A22B5D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		C8B27B8728153F3100A22B5D /* libtransmission.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D18389709DEC0030047D688 /* libtransmission.a */; };
 		C8B27B8828153F3100A22B5D /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C88771A92803EE42005C7523 /* libz.tbd */; };
-		C8B27B8928153F3100A22B5D /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		C8B27B8A28153F3100A22B5D /* libiconv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C88771AB2803EE53005C7523 /* libiconv.tbd */; };
 		C8B27B8B28153F3100A22B5D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		C8B27B9828153F3400A22B5D /* libtransmission.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D18389709DEC0030047D688 /* libtransmission.a */; };
 		C8B27B9928153F3400A22B5D /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C88771A92803EE42005C7523 /* libz.tbd */; };
-		C8B27B9A28153F3400A22B5D /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		C8B27B9B28153F3400A22B5D /* libiconv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C88771AB2803EE53005C7523 /* libiconv.tbd */; };
 		C8B27B9C28153F3400A22B5D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
 		C8B27BA328153F6300A22B5D /* create.cc in Sources */ = {isa = PBXBuildFile; fileRef = C887BEC02807FCE900867D3C /* create.cc */; };
@@ -444,7 +436,6 @@
 		ED5E0E8D2CD30B180071433B /* QuickLookExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ED5E0E7C2CD30B180071433B /* QuickLookExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		ED5E0E9C2CD30E8F0071433B /* PreviewProvider.mm in Sources */ = {isa = PBXBuildFile; fileRef = ED5E0E962CD30E8F0071433B /* PreviewProvider.mm */; };
 		ED5E0E9D2CD3134B0071433B /* libtransmission.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D18389709DEC0030047D688 /* libtransmission.a */; };
-		ED5E0EA02CD3147B0071433B /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 55869925257074EC00F77A43 /* libcurl.tbd */; };
 		ED5E0EA22CD314FE0071433B /* style.css in Resources */ = {isa = PBXBuildFile; fileRef = ED5E0EA12CD314FE0071433B /* style.css */; };
 		ED5E0EFA2CD315720071433B /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = ED5E0EF72CD315720071433B /* Localizable.strings */; };
 		ED5E0F0F2CD31BC20071433B /* NSStringAdditions.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4DE5CC9C0980656F00BE280E /* NSStringAdditions.mm */; };
@@ -475,6 +466,28 @@
 		EDD735D62D83087400852628 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EDD735D52D83087400852628 /* UniformTypeIdentifiers.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		F11545ACA7C4D7A464F703AB /* block-info.h in Headers */ = {isa = PBXBuildFile; fileRef = 6A044CBD8C049AFCBD4DB411 /* block-info.h */; settings = {ATTRIBUTES = (Project, ); }; };
 		F63480631E1D7274005B9E09 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F63480621E1D7274005B9E09 /* Images.xcassets */; };
+		FA7E00000000000000000021 /* announcer-ws.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000001 /* announcer-ws.cc */; };
+		FA7E00000000000000000023 /* announcer-ws-protocol.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000003 /* announcer-ws-protocol.cc */; };
+		FA7E00000000000000000025 /* websocket-client.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000005 /* websocket-client.cc */; };
+		FA7E00000000000000000027 /* rtc-signaling.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000007 /* rtc-signaling.cc */; };
+		FA7E0000000000000000002A /* peer-socket-rtc.cc in Sources */ = {isa = PBXBuildFile; fileRef = FA7E0000000000000000000A /* peer-socket-rtc.cc */; };
+		FA7E00000000000000000042 /* libwebtorrent-deps.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000041 /* libwebtorrent-deps.a */; };
+		FA7E00000000000000000050 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
+		FA7E00000000000000000060 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2E669780F5B8E5A00B4251A /* Security.framework */; };
+		FA7E00000000000000000051 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
+		FA7E00000000000000000052 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
+		FA7E00000000000000000062 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2E669780F5B8E5A00B4251A /* Security.framework */; };
+		FA7E00000000000000000053 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
+		FA7E00000000000000000063 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2E669780F5B8E5A00B4251A /* Security.framework */; };
+		FA7E00000000000000000054 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
+		FA7E00000000000000000064 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2E669780F5B8E5A00B4251A /* Security.framework */; };
+		FA7E00000000000000000055 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
+		FA7E00000000000000000065 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2E669780F5B8E5A00B4251A /* Security.framework */; };
+		FA7E00000000000000000056 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
+		FA7E00000000000000000066 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2E669780F5B8E5A00B4251A /* Security.framework */; };
+		FA7E00000000000000000057 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FA7E00000000000000000043 /* SystemConfiguration.framework */; };
+		FA7E00000000000000000067 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2E669780F5B8E5A00B4251A /* Security.framework */; };
+		FA7E00000000000000000070 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = C88771A92803EE42005C7523 /* libz.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -810,7 +823,6 @@
 		4DF0C5AA0899190500DD8943 /* Controller.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Controller.h; sourceTree = "<group>"; };
 		4DFBC2DD09C0970D00D5C571 /* Torrent.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Torrent.h; sourceTree = "<group>"; };
 		4DFBC2DE09C0970D00D5C571 /* Torrent.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = Torrent.mm; sourceTree = "<group>"; };
-		55869925257074EC00F77A43 /* libcurl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurl.tbd; path = usr/lib/libcurl.tbd; sourceTree = SDKROOT; };
 		66F977825E65AD498C028BB1 /* announce-list.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "announce-list.cc"; sourceTree = "<group>"; };
 		66F977825E65AD498C028BB3 /* announce-list.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; path = "announce-list.h"; sourceTree = "<group>"; };
 		6A044CBD8C049AFCBD4DB411 /* block-info.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.h; path = "block-info.h"; sourceTree = "<group>"; };
@@ -1438,6 +1450,19 @@
 		EDC749F82D98AE2900A12D0F /* PowerManager.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = PowerManager.mm; sourceTree = "<group>"; };
 		EDD735D52D83087400852628 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		F63480621E1D7274005B9E09 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Images/Images.xcassets; sourceTree = "<group>"; };
+		FA7E00000000000000000001 /* announcer-ws.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "announcer-ws.cc"; sourceTree = "<group>"; };
+		FA7E00000000000000000002 /* announcer-ws.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "announcer-ws.h"; sourceTree = "<group>"; };
+		FA7E00000000000000000003 /* announcer-ws-protocol.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "announcer-ws-protocol.cc"; sourceTree = "<group>"; };
+		FA7E00000000000000000004 /* announcer-ws-protocol.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "announcer-ws-protocol.h"; sourceTree = "<group>"; };
+		FA7E00000000000000000005 /* websocket-client.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "websocket-client.cc"; sourceTree = "<group>"; };
+		FA7E00000000000000000006 /* websocket-client.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "websocket-client.h"; sourceTree = "<group>"; };
+		FA7E00000000000000000007 /* rtc-signaling.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "rtc-signaling.cc"; sourceTree = "<group>"; };
+		FA7E00000000000000000008 /* rtc-signaling.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "rtc-signaling.h"; sourceTree = "<group>"; };
+		FA7E00000000000000000009 /* rtc-endpoint.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "rtc-endpoint.h"; sourceTree = "<group>"; };
+		FA7E0000000000000000000A /* peer-socket-rtc.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "peer-socket-rtc.cc"; sourceTree = "<group>"; };
+		FA7E0000000000000000000B /* peer-socket-rtc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "peer-socket-rtc.h"; sourceTree = "<group>"; };
+		FA7E00000000000000000041 /* libwebtorrent-deps.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "build-xcode-webtorrent/lib/libwebtorrent-deps.a"; sourceTree = SOURCE_ROOT; };
+		FA7E00000000000000000043 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1454,7 +1479,8 @@
 			files = (
 				4D9A2BF009E16D21002D0FF9 /* libtransmission.a in Frameworks */,
 				C88771AE2803EE7C005C7523 /* libz.tbd in Frameworks */,
-				558699542570759E00F77A43 /* libcurl.tbd in Frameworks */,
+				FA7E00000000000000000050 /* SystemConfiguration.framework in Frameworks */,
+				FA7E00000000000000000060 /* Security.framework in Frameworks */,
 				C88771B22803EE87005C7523 /* libiconv.tbd in Frameworks */,
 				A2B3FB4C0E59023000FF78FB /* Cocoa.framework in Frameworks */,
 			);
@@ -1470,7 +1496,7 @@
 				4D1838DD09DEC0E80047D688 /* libtransmission.a in Frameworks */,
 				A24F19080A3A790800C9C145 /* Sparkle.framework in Frameworks */,
 				C88771B52803EEB1005C7523 /* libiconv.tbd in Frameworks */,
-				55869926257074EC00F77A43 /* libcurl.tbd in Frameworks */,
+				FA7E00000000000000000051 /* SystemConfiguration.framework in Frameworks */,
 				A2E669790F5B8E5A00B4251A /* Security.framework in Frameworks */,
 				A22CFB820FB66EF30009BD3E /* Carbon.framework in Frameworks */,
 				A221DCC8104B3660008A642D /* Quartz.framework in Frameworks */,
@@ -1518,6 +1544,7 @@
 				A22CFCCB0FC24FDA0009BD3E /* libdht.a in Frameworks */,
 				A267927C130DFF2700CB7464 /* libutp.a in Frameworks */,
 				BE75C38A0C72A1ED00DBEFE0 /* libevent.a in Frameworks */,
+				FA7E00000000000000000042 /* libwebtorrent-deps.a in Frameworks */,
 				BE1183780CE161390002D0F3 /* libminiupnp.a in Frameworks */,
 				A226FDAC0D0CDF20005A7F71 /* libnatpmp.a in Frameworks */,
 			);
@@ -1529,7 +1556,8 @@
 			files = (
 				BEFC1C050C07753500B0BB3C /* libtransmission.a in Frameworks */,
 				C88771AF2803EE7D005C7523 /* libz.tbd in Frameworks */,
-				558699602570759F00F77A43 /* libcurl.tbd in Frameworks */,
+				FA7E00000000000000000052 /* SystemConfiguration.framework in Frameworks */,
+				FA7E00000000000000000062 /* Security.framework in Frameworks */,
 				C88771B32803EE88005C7523 /* libiconv.tbd in Frameworks */,
 				A2B3FB530E59027100FF78FB /* Cocoa.framework in Frameworks */,
 			);
@@ -1541,7 +1569,8 @@
 			files = (
 				BEFC1D2D0C0783D900B0BB3C /* libtransmission.a in Frameworks */,
 				C88771B02803EE7D005C7523 /* libz.tbd in Frameworks */,
-				5586996C2570759F00F77A43 /* libcurl.tbd in Frameworks */,
+				FA7E00000000000000000053 /* SystemConfiguration.framework in Frameworks */,
+				FA7E00000000000000000063 /* Security.framework in Frameworks */,
 				C88771B42803EE88005C7523 /* libiconv.tbd in Frameworks */,
 				A25E03D90E4015100086C225 /* Cocoa.framework in Frameworks */,
 			);
@@ -1581,7 +1610,8 @@
 			files = (
 				C8B27B7628153F2B00A22B5D /* libtransmission.a in Frameworks */,
 				C8B27B7728153F2B00A22B5D /* libz.tbd in Frameworks */,
-				C8B27B7828153F2B00A22B5D /* libcurl.tbd in Frameworks */,
+				FA7E00000000000000000054 /* SystemConfiguration.framework in Frameworks */,
+				FA7E00000000000000000064 /* Security.framework in Frameworks */,
 				C8B27B7928153F2B00A22B5D /* libiconv.tbd in Frameworks */,
 				C8B27B7A28153F2B00A22B5D /* Cocoa.framework in Frameworks */,
 			);
@@ -1593,7 +1623,8 @@
 			files = (
 				C8B27B8728153F3100A22B5D /* libtransmission.a in Frameworks */,
 				C8B27B8828153F3100A22B5D /* libz.tbd in Frameworks */,
-				C8B27B8928153F3100A22B5D /* libcurl.tbd in Frameworks */,
+				FA7E00000000000000000055 /* SystemConfiguration.framework in Frameworks */,
+				FA7E00000000000000000065 /* Security.framework in Frameworks */,
 				C8B27B8A28153F3100A22B5D /* libiconv.tbd in Frameworks */,
 				C8B27B8B28153F3100A22B5D /* Cocoa.framework in Frameworks */,
 			);
@@ -1605,7 +1636,8 @@
 			files = (
 				C8B27B9828153F3400A22B5D /* libtransmission.a in Frameworks */,
 				C8B27B9928153F3400A22B5D /* libz.tbd in Frameworks */,
-				C8B27B9A28153F3400A22B5D /* libcurl.tbd in Frameworks */,
+				FA7E00000000000000000056 /* SystemConfiguration.framework in Frameworks */,
+				FA7E00000000000000000066 /* Security.framework in Frameworks */,
 				C8B27B9B28153F3400A22B5D /* libiconv.tbd in Frameworks */,
 				C8B27B9C28153F3400A22B5D /* Cocoa.framework in Frameworks */,
 			);
@@ -1617,7 +1649,9 @@
 			files = (
 				ED5E0E7E2CD30B180071433B /* Quartz.framework in Frameworks */,
 				ED5E0E9D2CD3134B0071433B /* libtransmission.a in Frameworks */,
-				ED5E0EA02CD3147B0071433B /* libcurl.tbd in Frameworks */,
+				FA7E00000000000000000057 /* SystemConfiguration.framework in Frameworks */,
+				FA7E00000000000000000067 /* Security.framework in Frameworks */,
+				FA7E00000000000000000070 /* libz.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2032,6 +2066,17 @@
 				A29EBE530DC01FC9006CEE80 /* web.h */,
 				FA5D8AC27CF4B02A0011A100 /* curl-tls.cc */,
 				FA5D8AC27CF4B02A0011A101 /* curl-tls.h */,
+				FA7E00000000000000000001 /* announcer-ws.cc */,
+				FA7E00000000000000000002 /* announcer-ws.h */,
+				FA7E00000000000000000003 /* announcer-ws-protocol.cc */,
+				FA7E00000000000000000004 /* announcer-ws-protocol.h */,
+				FA7E00000000000000000005 /* websocket-client.cc */,
+				FA7E00000000000000000006 /* websocket-client.h */,
+				FA7E00000000000000000007 /* rtc-signaling.cc */,
+				FA7E00000000000000000008 /* rtc-signaling.h */,
+				FA7E00000000000000000009 /* rtc-endpoint.h */,
+				FA7E0000000000000000000A /* peer-socket-rtc.cc */,
+				FA7E0000000000000000000B /* peer-socket-rtc.h */,
 				A292A6E50DFB45EC004B9C0A /* webseed.cc */,
 				A292A6E60DFB45EC004B9C0A /* webseed.h */,
 			);
@@ -2145,7 +2190,8 @@
 			children = (
 				EDD735D52D83087400852628 /* UniformTypeIdentifiers.framework */,
 				C87369642809984200573C90 /* UserNotifications.framework */,
-				55869925257074EC00F77A43 /* libcurl.tbd */,
+				FA7E00000000000000000041 /* libwebtorrent-deps.a */,
+				FA7E00000000000000000043 /* SystemConfiguration.framework */,
 				C88771AB2803EE53005C7523 /* libiconv.tbd */,
 				C88771A92803EE42005C7523 /* libz.tbd */,
 				A2F35BE215C5A7F900EBF632 /* Foundation.framework */,
@@ -3330,6 +3376,11 @@
 				A29DF8B90DB2544C00D04E5A /* resume.cc in Sources */,
 				A2A4E9220DE0F7EB000CE197 /* web.cc in Sources */,
 				FA5D8AC27CF4B02A0011A102 /* curl-tls.cc in Sources */,
+				FA7E00000000000000000021 /* announcer-ws.cc in Sources */,
+				FA7E00000000000000000023 /* announcer-ws-protocol.cc in Sources */,
+				FA7E00000000000000000025 /* websocket-client.cc in Sources */,
+				FA7E00000000000000000027 /* rtc-signaling.cc in Sources */,
+				FA7E0000000000000000002A /* peer-socket-rtc.cc in Sources */,
 				A292A6E80DFB45FC004B9C0A /* webseed.cc in Sources */,
 				A25E03E30E4015380086C225 /* tr-getopt.cc in Sources */,
 				C1305EBE186A13B100F03351 /* file.cc in Sources */,
@@ -4108,6 +4159,8 @@
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
+					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(SRCROOT)/third-party/libdatachannel/include",
 					"third-party/dht",
 					"third-party/fast_float/include",
 					"third-party/wide-integer",
@@ -4122,6 +4175,10 @@
 				OTHER_CFLAGS = (
 					"$(inherited)",
 					"-DWITH_UTP",
+					"-DWITH_WEBTORRENT=1",
+					"-DRTC_STATIC",
+					"-DRTC_ENABLE_MEDIA=0",
+					"-DRTC_ENABLE_WEBSOCKET=0",
 					"-D__TRANSMISSION__",
 					"-DWIDE_INTEGER_DISABLE_FLOAT_INTEROP",
 					"-DWIDE_INTEGER_DISABLE_IOSTREAM",
@@ -4360,6 +4417,8 @@
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
+					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(SRCROOT)/third-party/libdatachannel/include",
 					"third-party/dht",
 					"third-party/fast_float/include",
 					"third-party/wide-integer",
@@ -4374,6 +4433,10 @@
 				OTHER_CFLAGS = (
 					"$(inherited)",
 					"-DWITH_UTP",
+					"-DWITH_WEBTORRENT=1",
+					"-DRTC_STATIC",
+					"-DRTC_ENABLE_MEDIA=0",
+					"-DRTC_ENABLE_WEBSOCKET=0",
 					"-D__TRANSMISSION__",
 					"-DWIDE_INTEGER_DISABLE_FLOAT_INTEROP",
 					"-DWIDE_INTEGER_DISABLE_IOSTREAM",
@@ -4692,6 +4755,8 @@
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
+					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(SRCROOT)/third-party/libdatachannel/include",
 					"third-party/dht",
 					"third-party/fast_float/include",
 					"third-party/wide-integer",
@@ -4706,6 +4771,10 @@
 				OTHER_CFLAGS = (
 					"$(inherited)",
 					"-DWITH_UTP",
+					"-DWITH_WEBTORRENT=1",
+					"-DRTC_STATIC",
+					"-DRTC_ENABLE_MEDIA=0",
+					"-DRTC_ENABLE_WEBSOCKET=0",
 					"-D__TRANSMISSION__",
 					"-DWIDE_INTEGER_DISABLE_FLOAT_INTEROP",
 					"-DWIDE_INTEGER_DISABLE_IOSTREAM",

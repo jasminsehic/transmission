@@ -504,14 +504,26 @@ jobs:
           echo '${{ toJSON(runner) }}'
           sw_vers
       - name: Get Dependencies
-        run: brew install --formulae xcbeautify
+        run: brew install --formulae xcbeautify cmake ninja
       - name: Get Source
         uses: actions/checkout@v6
         with:
           path: src
           submodules: recursive
+      - name: Build WebTorrent dependencies
+        run: bash src/release/macos/build-webtorrent-deps.sh
       - name: Build
         run: set -o pipefail && xcodebuild -project src/Transmission.xcodeproj -scheme Transmission -configuration 'Release - Debug' -derivedDataPath pfx ONLY_ACTIVE_ARCH=NO build | xcbeautify --renderer github-actions
+      - name: Verify native WebTorrent linkage
+        run: |
+          set -euo pipefail
+          app="$(find pfx/Build/Products -path '*/Transmission.app/Contents/MacOS/Transmission' -print -quit)"
+          xcrun lipo -verify_arch arm64 x86_64 "$app"
+          for arch in arm64 x86_64; do
+            xcrun nm -arch "$arch" "$app" > native-symbols.txt
+            grep -q '_curl_ws_recv' native-symbols.txt
+            grep -q '_curl_ws_send' native-symbols.txt
+          done
       - uses: actions/upload-artifact@v6
         with:
           name: binaries-${{ github.job }}

@@ -216,3 +216,5 @@ Requirements:
 Initialize Git submodules recursively to build the bundled dependencies. `USE_SYSTEM_LIBDATACHANNEL=AUTO` uses a compatible system installation when available; set it to `ON` to require a system installation or `OFF` to use the bundled dependency. On Windows, the static LibDataChannel target is required.
 
 Windows installers use the existing `pack-msi` target. See [Configuration Files](Configuration-Files.md) for runtime settings.
+
+For native macOS Xcode builds, initialize the submodules recursively, install CMake and Ninja, and run `bash release/macos/build-webtorrent-deps.sh` from the repository root before opening the Xcode project. The script builds pinned WebSocket-enabled libcurl, OpenSSL, and bundled libdatachannel as a universal static archive for arm64 and x86_64. The Xcode build uses the resulting archive and headers in `build-xcode-webtorrent/`.
