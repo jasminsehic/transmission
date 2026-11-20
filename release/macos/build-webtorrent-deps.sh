@@ -75,4 +75,4 @@ cp -R "$work/arm64/curl-install/include/curl" "$prefix/include/"
 xcrun lipo -create \
     "$work/arm64/libwebtorrent-deps.a" "$work/x86_64/libwebtorrent-deps.a" \
     -output "$prefix/lib/libwebtorrent-deps.a"
-xcrun lipo -verify_arch arm64 x86_64 "$prefix/lib/libwebtorrent-deps.a"
+xcrun lipo "$prefix/lib/libwebtorrent-deps.a" -verify_arch arm64 x86_64

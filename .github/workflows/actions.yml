@@ -519,7 +519,7 @@ jobs:
         run: |
           set -euo pipefail
           app="$(find pfx/Build/Products -path '*/Transmission.app/Contents/MacOS/Transmission' -print -quit)"
-          xcrun lipo -verify_arch arm64 x86_64 "$app"
+          xcrun lipo "$app" -verify_arch arm64 x86_64
           for arch in arm64 x86_64; do
             xcrun nm -arch "$arch" "$app" > native-symbols.txt
             grep -q '_curl_ws_recv' native-symbols.txt
