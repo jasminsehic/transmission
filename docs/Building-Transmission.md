@@ -204,3 +204,15 @@ To build the project run:
 ```bat
 cmake --build build
 ```
+
+## Optional WebTorrent support
+
+CMake builds include WebSocket (WS/WSS) trackers and WebRTC DataChannel peers by default. Set `-DENABLE_WEBTORRENT=OFF` to omit support. WebTorrent is disabled by default at runtime.
+
+Requirements:
+* libcurl 7.86.0 or newer, built with WS and WSS support.
+* libdatachannel 0.24.6 or newer. The bundled build disables media and libdatachannel's WebSocket implementation.
+
+Initialize Git submodules recursively to build the bundled dependencies. `USE_SYSTEM_LIBDATACHANNEL=AUTO` uses a compatible system installation when available; set it to `ON` to require a system installation or `OFF` to use the bundled dependency. On Windows, the static LibDataChannel target is required.
+
+Windows installers use the existing `pack-msi` target. See [Configuration Files](Configuration-Files.md) for runtime settings.

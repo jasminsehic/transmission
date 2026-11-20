@@ -357,6 +357,7 @@ Files are returned in the order they are laid out in the torrent. References to 
 | `is_incoming`          | boolean    | tr_peer_stat
 | `is_uploading_to`      | boolean    | tr_peer_stat
 | `is_utp`               | boolean    | tr_peer_stat
+| `is_webrtc`            | boolean    | true if the peer uses WebRTC
 | `peer_id`              | string     | tr_peer_stat
 | `peer_is_choked`       | boolean    | tr_peer_stat
 | `peer_is_interested`   | boolean    | tr_peer_stat
@@ -633,6 +634,8 @@ Response parameters: `path`, `name`, and `id`, holding the torrent ID integer
 | `units` | object | see below
 | `utp_enabled` | boolean | **DEPRECATED** Use `preferred_transports` instead
 | `version` | string | long version string `$version ($revision)`
+| `webtorrent_enabled` | boolean | enable WS/WSS trackers and WebRTC peers when built with WebTorrent support (default false)
+| `webtorrent_ice_servers` | array of strings | STUN and TURN server URLs used for WebRTC ICE gathering; ICE traffic does not use the tracker proxy
 
 
 `units`: an object containing:
@@ -1097,6 +1100,9 @@ Transmission 4.1.0 (`rpc_version_semver` 6.0.0, `rpc_version`: 18)
 | `torrent_get` | :warning: **DEPRECATED** `manual_announce_time`, it never worked
 | `session_get` | new arg `preferred_transports`
 | `session_set` | new arg `preferred_transports`
+| `session_get` | new args `webtorrent_enabled`, `webtorrent_ice_servers`
+| `session_set` | new args `webtorrent_enabled`, `webtorrent_ice_servers`
+| `torrent_get` | new peer field `is_webrtc`
 | `session_get` | :warning: **DEPRECATED** `tcp_enabled`. Use `preferred_transports` instead.
 | `session_get` | :warning: **DEPRECATED** `utp_enabled`. Use `preferred_transports` instead.
 | `session_set` | :warning: **DEPRECATED** `utp_enabled`. Use `preferred_transports` instead.
