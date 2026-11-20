@@ -438,7 +438,7 @@ jobs:
           if grep 'warning:' makelog; then exit 1; fi
 
   clang-tidy-libtransmission-win32:
-    runs-on: windows-2025
+    runs-on: windows-2022
     needs: what-to-make
     if: |
       needs.what-to-make.outputs.make-core == 'true' ||
@@ -458,29 +458,11 @@ jobs:
         with:
           arch: x64
           type: CoreDeps
+          cache-suffix: -vs2022
       - name: Setup Visual Studio Environment
         uses: ./src/.github/actions/setup-vs-env-win32
         with:
           arch: x64
-      - name: Install compatible clang-tidy
-        shell: pwsh
-        run: |
-          $Installer = Join-Path $Env:RUNNER_TEMP 'LLVM-22.1.8-win64.exe'
-          $LlvmDir = Join-Path $Env:RUNNER_TEMP 'llvm-22'
-          Invoke-WebRequest -Uri 'https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-win64.exe' -OutFile $Installer
-          if ((Get-FileHash $Installer -Algorithm SHA256).Hash -ne '16e5709785fef73c854646241c4a92c5cd574318d1b33c63330dd7721903e55c') {
-            throw 'LLVM installer checksum mismatch'
-          }
-          $Process = Start-Process -FilePath $Installer -ArgumentList @('/S', "/D=$LlvmDir") -Wait -PassThru
-          if ($Process.ExitCode -ne 0) {
-            throw "LLVM installation failed: $($Process.ExitCode)"
-          }
-          $Tidy = Join-Path $LlvmDir 'bin/clang-tidy.exe'
-          & $Tidy --version
-          if ($LASTEXITCODE -ne 0) {
-            throw 'clang-tidy is not available'
-          }
-          "TR_CLANG_TIDY=$($Tidy.Replace('\', '/'))" | Out-File $Env:GITHUB_ENV -Append
       - name: Configure
         run: |
           $CmakeArgs = @(
@@ -492,7 +474,6 @@ jobs:
             "-DENABLE_TESTS=${{ needs.what-to-make.outputs.make-tests == 'true' && 'ON' || 'OFF' }}"
             '-DENABLE_WEBTORRENT=ON'
             '-DRUN_CLANG_TIDY=ON'
-            "-DTR_CLANG_TIDY=`"$Env:TR_CLANG_TIDY`""
             '-DUSE_SYSTEM_DEFAULT=OFF'
           )
           cmd /c "`"$Env:VCVARSALL`" $Env:VC_ARCH >nul && cmake $($CmakeArgs -join ' ')"
