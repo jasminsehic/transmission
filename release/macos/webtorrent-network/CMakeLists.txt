@@ -19,7 +19,9 @@ execute_process(
 set(OPENSSL_REVISION c1eeb9406b6142148f267594197d853403d10208)
 set(CURL_REVISION 11b991232fbcaa88e2b1faecac224416b0001e35)
 set(MACOS_DEPLOYMENT_TARGET 12.0)
-set(ARCHIVE_INPUTS)
+set(CURL_ARCHIVES)
+set(SSL_ARCHIVES)
+set(CRYPTO_ARCHIVES)
 
 foreach(ARCH IN ITEMS arm64 x86_64)
     set(OPENSSL_BUILD "${CMAKE_BINARY_DIR}/build/openssl-${ARCH}")
@@ -80,16 +82,9 @@ foreach(ARCH IN ITEMS arm64 x86_64)
         DEPENDS openssl-${ARCH}
         BUILD_BYPRODUCTS "${CURL_PREFIX}/lib/libcurl.a")
 
-    set(ARCHIVE "${CMAKE_BINARY_DIR}/libwebtorrent-network-${ARCH}.a")
-    add_custom_command(
-        OUTPUT "${ARCHIVE}"
-        COMMAND "${XCRUN}" libtool -static -o "${ARCHIVE}"
-            "${CURL_PREFIX}/lib/libcurl.a"
-            "${OPENSSL_PREFIX}/lib/libssl.a"
-            "${OPENSSL_PREFIX}/lib/libcrypto.a"
-        DEPENDS curl-${ARCH}
-        VERBATIM)
-    list(APPEND ARCHIVE_INPUTS "${ARCHIVE}")
+    list(APPEND CURL_ARCHIVES "${CURL_PREFIX}/lib/libcurl.a")
+    list(APPEND SSL_ARCHIVES "${OPENSSL_PREFIX}/lib/libssl.a")
+    list(APPEND CRYPTO_ARCHIVES "${OPENSSL_PREFIX}/lib/libcrypto.a")
 
     if(ARCH STREQUAL "arm64")
         set(ARM64_CURL_HEADERS "${CURL_PREFIX}/include/curl")
@@ -97,16 +92,28 @@ foreach(ARCH IN ITEMS arm64 x86_64)
     endif()
 endforeach()
 
-set(UNIVERSAL_ARCHIVE "${CMAKE_BINARY_DIR}/lib/libwebtorrent-network.a")
+set(ARCHIVE_DIR "${CMAKE_BINARY_DIR}/lib")
 add_custom_command(
-    OUTPUT "${UNIVERSAL_ARCHIVE}"
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/lib"
+    OUTPUT "${ARCHIVE_DIR}/libcurl.a"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${ARCHIVE_DIR}"
+    COMMAND "${XCRUN}" lipo -create ${CURL_ARCHIVES} -output "${ARCHIVE_DIR}/libcurl.a"
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/include"
-    COMMAND "${XCRUN}" lipo -create ${ARCHIVE_INPUTS} -output "${UNIVERSAL_ARCHIVE}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${ARM64_CURL_HEADERS}" "${CMAKE_BINARY_DIR}/include/curl"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${ARM64_SSL_HEADERS}" "${CMAKE_BINARY_DIR}/include/openssl"
-    COMMAND "${XCRUN}" lipo "${UNIVERSAL_ARCHIVE}" -verify_arch arm64 x86_64
-    DEPENDS ${ARCHIVE_INPUTS}
+    COMMAND "${XCRUN}" lipo "${ARCHIVE_DIR}/libcurl.a" -verify_arch arm64 x86_64
+    DEPENDS curl-arm64 curl-x86_64
     VERBATIM)
 
-add_custom_target(webtorrent-network ALL DEPENDS "${UNIVERSAL_ARCHIVE}")
+add_custom_command(
+    OUTPUT "${ARCHIVE_DIR}/libssl.a" "${ARCHIVE_DIR}/libcrypto.a"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${ARCHIVE_DIR}"
+    COMMAND "${XCRUN}" lipo -create ${SSL_ARCHIVES} -output "${ARCHIVE_DIR}/libssl.a"
+    COMMAND "${XCRUN}" lipo -create ${CRYPTO_ARCHIVES} -output "${ARCHIVE_DIR}/libcrypto.a"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/include"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${ARM64_SSL_HEADERS}" "${CMAKE_BINARY_DIR}/include/openssl"
+    COMMAND "${XCRUN}" lipo "${ARCHIVE_DIR}/libssl.a" -verify_arch arm64 x86_64
+    COMMAND "${XCRUN}" lipo "${ARCHIVE_DIR}/libcrypto.a" -verify_arch arm64 x86_64
+    DEPENDS openssl-arm64 openssl-x86_64
+    VERBATIM)
+
+add_custom_target(webtorrent-network ALL
+    DEPENDS "${ARCHIVE_DIR}/libcurl.a" "${ARCHIVE_DIR}/libssl.a" "${ARCHIVE_DIR}/libcrypto.a")

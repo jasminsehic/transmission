@@ -536,6 +536,35 @@ jobs:
           name: binaries-${{ github.job }}
           path: pfx/Build/Products/**/Transmission.app*
 
+  macos-xcodebuild-no-webtorrent:
+    runs-on: macos-26
+    needs: [ what-to-make ]
+    if: ${{ needs.what-to-make.outputs.make-mac == 'true' }}
+    steps:
+      - name: Get Source
+        uses: actions/checkout@v6
+        with:
+          path: src
+          submodules: recursive
+      - name: Build without WebTorrent
+        run: |
+          set -o pipefail
+          xcodebuild -project src/Transmission.xcodeproj -scheme Transmission -configuration 'Release - Debug' -derivedDataPath pfx ENABLE_WEBTORRENT=NO ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build 2>&1 | tee xcodebuild-no-webtorrent.log
+      - name: Confirm WebTorrent dependencies were omitted
+        run: |
+          set -euo pipefail
+          test ! -d src/build-xcode-webtorrent
+          if find pfx/Build/Products -name 'libwebtorrent-*.a' | grep -q .; then
+            echo "Unexpected native WebTorrent dependency archive"
+            exit 1
+          fi
+      - name: Upload Xcode build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: xcodebuild-no-webtorrent-log
+          path: xcodebuild-no-webtorrent.log
+
   macos-cmake-universal:
     strategy:
       fail-fast: false
