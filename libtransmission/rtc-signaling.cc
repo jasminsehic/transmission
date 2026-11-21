@@ -33,6 +33,7 @@
 #include <fmt/format.h>
 
 #include "libtransmission/crypto-utils.h"
+#include "libtransmission/error.h"
 #include "libtransmission/log.h"
 #include "libtransmission/net.h"
 #include "libtransmission/peer-socket-rtc.h"
@@ -272,14 +273,20 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
 
     struct Peer : std::enable_shared_from_this<Peer>
     {
-        Peer(std::shared_ptr<State> const& parent, std::string key, std::string tracker, std::string hash, bool is_incoming)
+        Peer(
+            std::shared_ptr<State> const& parent,
+            std::string key,
+            std::string tracker,
+            std::string hash,
+            bool is_incoming,
+            std::optional<std::string> bind_address)
             : owner{ parent }
             , diagnostic_id{ ++parent->next_diagnostic_peer }
             , id{ std::move(key) }
             , tracker_url{ std::move(tracker) }
             , info_hash{ std::move(hash) }
             , incoming{ is_incoming }
-            , pc{ std::make_shared<rtc::PeerConnection>(ice_config(parent->session, diagnostic_id)) }
+            , pc{ std::make_shared<rtc::PeerConnection>(ice_config(parent->session, std::move(bind_address))) }
             , created{ std::chrono::steady_clock::now() }
         {
         }
@@ -310,13 +317,10 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
 #endif
         }
 
-        static rtc::Configuration ice_config(tr_session const* session, uint64_t peer_sequence)
+        static rtc::Configuration ice_config(tr_session const* session, std::optional<std::string> bind_address)
         {
             auto config = rtc::Configuration{};
-            config.bindAddress = tr_rtc_network::bind_address(
-                session->settings().bind_address_ipv4,
-                session->settings().bind_address_ipv6,
-                peer_sequence);
+            config.bindAddress = std::move(bind_address);
             for (auto const& server : session->settings().webtorrent_ice_servers)
             {
                 if (server.starts_with("stun:") || server.starts_with("turn:") || server.starts_with("turns:"))
@@ -517,12 +521,12 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             return true;
         }
 
-        std::size_t filter_remote_candidates(rtc::Description& description)
+        [[nodiscard]] tr_error filter_remote_candidates(rtc::Description& description)
         {
             auto const parent = owner.lock();
             if (!parent)
             {
-                return 0;
+                return { ECANCELED, "WebRTC session closed" };
             }
             auto const candidates = description.candidates().size();
             auto const removed = tr_rtc_network::filter_blocklisted_candidates(
@@ -535,12 +539,10 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                     "WebRTC");
                 if (removed == candidates)
                 {
-#ifndef WORKAROUND_CLANG_TIDY_GH44701
-                    throw std::runtime_error("All remote ICE candidates are blocklisted");
-#endif
+                    return { EACCES, "All remote ICE candidates are blocklisted" };
                 }
             }
-            return removed;
+            return {};
         }
 
         void log_selected_pair()
@@ -586,7 +588,7 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             attach_channel(dc);
         }
 
-        void start_incoming(tr_ws_tracker::Signal const& signal, std::string our_peer, tr_rtc_signaling::SendAnswer send)
+        [[nodiscard]] tr_error start_incoming(tr_ws_tracker::Signal const& signal, std::string our_peer, tr_rtc_signaling::SendAnswer send)
         {
             tr_logAddDebug(fmt::format("WebRTC peer={} incoming offer processing", diagnostic_id), "WebRTC");
             remote_offer_id = signal.offer_id;
@@ -597,12 +599,17 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             failure_stage = "offer-parse";
             auto remote_offer = rtc::Description(signal.sdp, rtc::Description::Type::Offer);
             log_candidate_summary(diagnostic_id, "remote-offer", remote_offer);
-            filter_remote_candidates(remote_offer);
+            if (auto error = filter_remote_candidates(remote_offer); error)
+            {
+                failure_stage = "offer-blocklisted";
+                return error;
+            }
             failure_stage = "offer-apply-and-auto-answer";
             pc->setRemoteDescription(std::move(remote_offer));
             tr_logAddDebug(
                 fmt::format("WebRTC peer={} incoming remote offer accepted; automatic answer started", diagnostic_id),
                 "WebRTC");
+            return {};
         }
 
         void gathering_complete()
@@ -723,20 +730,25 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             tr_logAddDebug(fmt::format("WebRTC peer={} incoming peer socket submitted to session", diagnostic_id), "WebRTC");
         }
 
-        void on_answer(std::string const& sdp)
+        [[nodiscard]] tr_error on_answer(std::string const& sdp)
         {
             if (incoming || answered || sdp.empty())
             {
-                return;
+                return {};
             }
             failure_stage = "answer-parse";
             auto remote_answer = rtc::Description(sdp, rtc::Description::Type::Answer);
             log_candidate_summary(diagnostic_id, "remote-answer", remote_answer);
-            filter_remote_candidates(remote_answer);
+            if (auto error = filter_remote_candidates(remote_answer); error)
+            {
+                failure_stage = "answer-blocklisted";
+                return error;
+            }
             failure_stage = "answer-apply";
             pc->setRemoteDescription(std::move(remote_answer));
             answered = true;
             tr_logAddDebug(fmt::format("WebRTC peer={} remote answer accepted", diagnostic_id), "WebRTC");
+            return {};
         }
 
         void remove(std::string_view reason = "removed")
@@ -835,6 +847,19 @@ void tr_rtc_signaling::make_offers(
 
     for (size_t i = 0; i < count; ++i)
     {
+        auto bind_address = std::optional<std::string>{};
+        if (auto error = tr_rtc_network::bind_address(
+                state_->session->settings().bind_address_ipv4,
+                state_->session->settings().bind_address_ipv6,
+                state_->next_diagnostic_peer + 1U,
+                bind_address);
+            error)
+        {
+            tr_logAddWarn(fmt::format("WebRTC offer rejected: {}", error.message()), "WebRTC");
+            --batch->remaining;
+            continue;
+        }
+
         auto peer = std::shared_ptr<State::Peer>{};
 #ifndef WORKAROUND_CLANG_TIDY_GH44701
         try
@@ -845,7 +870,7 @@ void tr_rtc_signaling::make_offers(
             {
                 id = new_offer_id();
             }
-            peer = std::make_shared<State::Peer>(state_, id, tracker_url, hash_str, false);
+            peer = std::make_shared<State::Peer>(state_, id, tracker_url, hash_str, false, std::move(bind_address));
             state_->peers.emplace(peer->id, peer);
             peer->init();
             peer->start_outgoing(batch);
@@ -889,7 +914,13 @@ void tr_rtc_signaling::on_signal(
         try
 #endif
         {
-            it->second->on_answer(signal.sdp);
+            if (auto error = it->second->on_answer(signal.sdp); error)
+            {
+                tr_logAddWarn(
+                    fmt::format("WebRTC peer={} remote answer rejected: {}", it->second->diagnostic_id, error.message()),
+                    "WebRTC");
+                it->second->remove("remote-answer-rejected");
+            }
         }
 #ifndef WORKAROUND_CLANG_TIDY_GH44701
         catch (std::exception const&)
@@ -911,6 +942,18 @@ void tr_rtc_signaling::on_signal(
         return;
     }
 
+    auto bind_address = std::optional<std::string>{};
+    if (auto error = tr_rtc_network::bind_address(
+            state_->session->settings().bind_address_ipv4,
+            state_->session->settings().bind_address_ipv6,
+            state_->next_diagnostic_peer + 1U,
+            bind_address);
+        error)
+    {
+        tr_logAddWarn(fmt::format("WebRTC incoming offer rejected: {}", error.message()), "WebRTC");
+        return;
+    }
+
     auto peer = std::shared_ptr<State::Peer>{};
 #ifndef WORKAROUND_CLANG_TIDY_GH44701
     try
@@ -921,10 +964,16 @@ void tr_rtc_signaling::on_signal(
         {
             id = new_offer_id();
         }
-        peer = std::make_shared<State::Peer>(state_, id, tracker_url, signal.info_hash, true);
+        peer = std::make_shared<State::Peer>(state_, id, tracker_url, signal.info_hash, true, std::move(bind_address));
         state_->peers.emplace(peer->id, peer);
         peer->init();
-        peer->start_incoming(signal, our_peer_id, std::move(send_answer));
+        if (auto error = peer->start_incoming(signal, our_peer_id, std::move(send_answer)); error)
+        {
+            tr_logAddWarn(
+                fmt::format("WebRTC peer={} incoming offer rejected: {}", peer->diagnostic_id, error.message()),
+                "WebRTC");
+            peer->remove("incoming-offer-rejected");
+        }
     }
 #ifndef WORKAROUND_CLANG_TIDY_GH44701
     catch (std::exception const&)

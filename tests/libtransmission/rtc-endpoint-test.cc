@@ -7,7 +7,8 @@
 #include "libtransmission/rtc-endpoint.h"
 #include "libtransmission/rtc-network.h"
 
-#include <stdexcept>
+#include <cerrno>
+#include <optional>
 #include <string>
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -64,15 +65,24 @@ TEST_F(RtcEndpointTest, UsesExplicitBindAddressForWebRtc)
 {
     using tr_rtc_network::bind_address;
 
-    EXPECT_FALSE(bind_address("", "", 1));
-    EXPECT_FALSE(bind_address("0.0.0.0", "::", 1));
-    EXPECT_EQ(bind_address("192.0.2.10", "", 1), "192.0.2.10");
-    EXPECT_EQ(bind_address("", "2001:db8::10", 1), "2001:db8::10");
-    EXPECT_EQ(bind_address("192.0.2.10", "2001:db8::10", 1), "192.0.2.10");
-    EXPECT_EQ(bind_address("192.0.2.10", "2001:db8::10", 2), "2001:db8::10");
-    EXPECT_THROW(bind_address("2001:db8::10", "", 1), std::invalid_argument);
-    EXPECT_THROW(bind_address("", "192.0.2.10", 1), std::invalid_argument);
-    EXPECT_THROW(bind_address("not-an-ip", "", 1), std::invalid_argument);
+    auto address = std::optional<std::string>{};
+    EXPECT_FALSE(bind_address("", "", 1, address));
+    EXPECT_FALSE(address);
+    EXPECT_FALSE(bind_address("0.0.0.0", "::", 1, address));
+    EXPECT_FALSE(address);
+
+    EXPECT_FALSE(bind_address("192.0.2.10", "", 1, address));
+    EXPECT_EQ(address, "192.0.2.10");
+    EXPECT_FALSE(bind_address("", "2001:db8::10", 1, address));
+    EXPECT_EQ(address, "2001:db8::10");
+    EXPECT_FALSE(bind_address("192.0.2.10", "2001:db8::10", 1, address));
+    EXPECT_EQ(address, "192.0.2.10");
+    EXPECT_FALSE(bind_address("192.0.2.10", "2001:db8::10", 2, address));
+    EXPECT_EQ(address, "2001:db8::10");
+
+    EXPECT_EQ(bind_address("2001:db8::10", "", 1, address).code(), EINVAL);
+    EXPECT_EQ(bind_address("", "192.0.2.10", 1, address).code(), EINVAL);
+    EXPECT_EQ(bind_address("not-an-ip", "", 1, address).code(), EINVAL);
 }
 
 TEST_F(RtcEndpointTest, FiltersBlocklistedRemoteIceCandidatesBeforeNegotiation)

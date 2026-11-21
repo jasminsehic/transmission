@@ -10,10 +10,10 @@
 #endif
 
 #include <algorithm>
+#include <cerrno>
 #include <cstddef>
 #include <functional>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -29,41 +29,59 @@
 #pragma GCC diagnostic pop
 #endif
 
+#include "libtransmission/error.h"
 #include "libtransmission/net.h"
 
 namespace tr_rtc_network
 {
-[[nodiscard]] inline std::optional<std::string> bind_address(
+[[nodiscard]] inline tr_error bind_address(
     std::string_view ipv4,
     std::string_view ipv6,
-    std::size_t peer_sequence)
+    std::size_t peer_sequence,
+    std::optional<std::string>& selected)
 {
-    auto const parse = [](std::string_view value, bool const want_ipv4) -> std::optional<std::string>
+    selected.reset();
+
+    auto const parse = [](std::string_view value, bool want_ipv4, std::optional<std::string>& address) -> tr_error
     {
         if (value.empty())
         {
             return {};
         }
 
-        auto const address = tr_address::from_string(value);
-        if (!address || address->is_ipv4() != want_ipv4)
+        auto const parsed = tr_address::from_string(value);
+        if (!parsed || parsed->is_ipv4() != want_ipv4)
         {
-#if !defined(_WIN32) || !defined(__clang_analyzer__)
-            throw std::invalid_argument("Invalid WebRTC bind address");
-#else
-            return {};
-#endif
+            return { EINVAL, want_ipv4 ? "Invalid WebRTC IPv4 bind address" : "Invalid WebRTC IPv6 bind address" };
         }
-        return address->is_any() ? std::nullopt : std::optional<std::string>{ address->display_name() };
+        if (!parsed->is_any())
+        {
+            address = parsed->display_name();
+        }
+        return {};
     };
 
-    auto const v4 = parse(ipv4, true);
-    auto const v6 = parse(ipv6, false);
+    auto v4 = std::optional<std::string>{};
+    if (auto error = parse(ipv4, true, v4); error)
+    {
+        return error;
+    }
+
+    auto v6 = std::optional<std::string>{};
+    if (auto error = parse(ipv6, false, v6); error)
+    {
+        return error;
+    }
+
     if (v4 && v6)
     {
-        return peer_sequence % 2U == 1U ? v4 : v6;
+        selected = peer_sequence % 2U == 1U ? std::move(v4) : std::move(v6);
     }
-    return v4 ? v4 : v6;
+    else
+    {
+        selected = v4 ? std::move(v4) : std::move(v6);
+    }
+    return {};
 }
 
 template<typename IsBlocked>
