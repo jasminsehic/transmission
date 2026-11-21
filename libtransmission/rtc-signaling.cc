@@ -39,6 +39,7 @@
 #include "libtransmission/session.h"
 #include "libtransmission/rtc-signaling.h"
 #include "libtransmission/rtc-endpoint.h"
+#include "libtransmission/rtc-network.h"
 
 #if defined(_WIN32) && defined(__clang_analyzer__)
 // libdatachannel may throw; work around LLVM #44701 for Windows clang-tidy.
@@ -278,7 +279,7 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             , tracker_url{ std::move(tracker) }
             , info_hash{ std::move(hash) }
             , incoming{ is_incoming }
-            , pc{ std::make_shared<rtc::PeerConnection>(ice_config(parent->session)) }
+            , pc{ std::make_shared<rtc::PeerConnection>(ice_config(parent->session, diagnostic_id)) }
             , created{ std::chrono::steady_clock::now() }
         {
         }
@@ -309,9 +310,11 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
 #endif
         }
 
-        static rtc::Configuration ice_config(tr_session const* session)
+        static rtc::Configuration ice_config(tr_session const* session, uint64_t peer_sequence)
         {
             auto config = rtc::Configuration{};
+            config.bindAddress = tr_rtc_network::bind_address(
+                session->settings().bind_address_ipv4, session->settings().bind_address_ipv6, peer_sequence);
             for (auto const& server : session->settings().webtorrent_ice_servers)
             {
                 if (server.starts_with("stun:") || server.starts_with("turn:") || server.starts_with("turns:"))
@@ -439,7 +442,10 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                                 if (state == rtc::PeerConnection::IceState::Connected ||
                                     state == rtc::PeerConnection::IceState::Completed)
                                 {
-                                    p.log_selected_pair();
+                                    if (!p.reject_blocklisted_endpoint())
+                                    {
+                                        p.log_selected_pair();
+                                    }
                                 }
                             });
                     }
@@ -462,6 +468,10 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                                     "WebRTC");
                                 if (state == rtc::PeerConnection::State::Connected)
                                 {
+                                    if (p.reject_blocklisted_endpoint())
+                                    {
+                                        return;
+                                    }
                                     p.connected_once = true;
                                     p.log_selected_pair();
                                 }
@@ -485,6 +495,47 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                         }
                     });
             }
+        }
+
+        bool reject_blocklisted_endpoint()
+        {
+            auto const parent = owner.lock();
+            if (!parent)
+            {
+                return false;
+            }
+            auto const remote = pc->remoteAddress();
+            auto const endpoint = remote ? tr_rtc_endpoint::parse(*remote) : std::nullopt;
+            if (!endpoint || !parent->session->blocklist().contains(endpoint->address()))
+            {
+                return false;
+            }
+            tr_logAddDebug(fmt::format("WebRTC peer={} selected ICE endpoint is blocklisted", diagnostic_id), "WebRTC");
+            remove("selected-endpoint-blocklisted");
+            return true;
+        }
+
+        std::size_t filter_remote_candidates(rtc::Description& description)
+        {
+            auto const parent = owner.lock();
+            if (!parent)
+            {
+                return 0;
+            }
+            auto const candidates = description.candidates().size();
+            auto const removed = tr_rtc_network::filter_blocklisted_candidates(
+                description,
+                [&](tr_address const& address) { return parent->session->blocklist().contains(address); });
+            if (removed != 0)
+            {
+                tr_logAddDebug(
+                    fmt::format("WebRTC peer={} removed {} blocklisted ICE candidates", diagnostic_id, removed), "WebRTC");
+                if (removed == candidates)
+                {
+                    throw std::runtime_error("All remote ICE candidates are blocklisted");
+                }
+            }
+            return removed;
         }
 
         void log_selected_pair()
@@ -541,6 +592,7 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             failure_stage = "offer-parse";
             auto remote_offer = rtc::Description(signal.sdp, rtc::Description::Type::Offer);
             log_candidate_summary(diagnostic_id, "remote-offer", remote_offer);
+            filter_remote_candidates(remote_offer);
             failure_stage = "offer-apply-and-auto-answer";
             pc->setRemoteDescription(std::move(remote_offer));
             tr_logAddDebug(
@@ -631,6 +683,11 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                 remove("invalid-selected-ice-endpoint");
                 return;
             }
+            if (parent->session->blocklist().contains(socket_address->address()))
+            {
+                remove("selected-endpoint-blocklisted");
+                return;
+            }
             attached = true;
             channel_opened = std::chrono::steady_clock::now();
             tr_logAddDebug(
@@ -670,6 +727,7 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             failure_stage = "answer-parse";
             auto remote_answer = rtc::Description(sdp, rtc::Description::Type::Answer);
             log_candidate_summary(diagnostic_id, "remote-answer", remote_answer);
+            filter_remote_candidates(remote_answer);
             failure_stage = "answer-apply";
             pc->setRemoteDescription(std::move(remote_answer));
             answered = true;

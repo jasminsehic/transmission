@@ -85,10 +85,13 @@ sequenceDiagram
     R-->>T: SDP answer
     T-->>A: Answer associated with offer ID
     A->>S: Route answer
-    S->>D: Apply remote description
+    S->>S: Filter blocklisted IP candidates from remote SDP
+    S->>D: Apply filtered remote description
+    D-->>S: ICE connection ready
+    S->>S: Check selected endpoint blocklist
     D-->>S: DataChannel open
     S->>P: Add RTC peer socket using selected ICE endpoint
-    P->>P: Check blocklist at peer admission
+    P->>P: Recheck selected endpoint blocklist at admission
     alt Endpoint permitted
         P->>R: BitTorrent handshake and pieces over DataChannel
     else Endpoint blocklisted
@@ -103,10 +106,12 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     Settings["proxy_url setting"]
+    Binding["bind_address_ipv4 / bind_address_ipv6"]
     subgraph Local["Transmission"]
         WS["WS/WSS client<br/>libcurl"]
         ICE["WebRTC ICE<br/>libjuice"]
-        Admission["Selected ICE endpoint<br/>blocklist check"]
+        Filter["Remote SDP candidate<br/>blocklist filter"]
+        Admission["Selected ICE endpoint<br/>blocklist checks"]
         Swarm["BitTorrent peer manager"]
     end
     Proxy["HTTP(S) / SOCKS proxy"]
@@ -115,9 +120,12 @@ flowchart LR
     TURN["TURN server (optional)"]
     Remote["Remote WebRTC peer"]
     Settings -.->|"If set"| WS
+    Binding -.->|"One explicit IP per ICE peer"| ICE
     WS -->|"Configured proxy"| Proxy
     Proxy -->|"Tracker signaling / SDP"| Tracker
     WS -->|"Direct or environment proxy when unset"| Tracker
+    WS -.->|"Offers / answers for inspection"| Filter
+    Filter -.->|"Permitted candidates"| ICE
     ICE -->|"STUN discovery"| STUN
     ICE -->|"TURN allocation if configured"| TURN
     ICE <-->|"Direct ICE checks / peer traffic"| Remote
@@ -130,8 +138,8 @@ flowchart LR
 **Current policy boundaries:**
 
 - `webtorrent_enabled` controls WebRTC and WS/WSS use at runtime (default `false`). `ENABLE_WEBTORRENT` controls compilation.
-- `rtc::Configuration::bindAddress` can bind a libjuice-backed ICE connection to one explicit IPv4 **or** IPv6 address, but this branch currently does not set it from Transmission's `bind_address_ipv4` / `bind_address_ipv6` settings.
-- The existing peer-manager IP blocklist applies to the **selected remote ICE endpoint** when the RTC peer socket is admitted, after ICE negotiation. It does not filter each ICE candidate or connectivity check. A TURN-relayed endpoint can represent the relay, not the underlying peer.
+- ICE peers use `rtc::Configuration::bindAddress` when `bind_address_ipv4` or `bind_address_ipv6` is explicitly configured. When both are set, new ICE peers alternate between the configured IPv4 and IPv6 addresses because a single libjuice peer connection accepts only one bind address. Empty/wildcard addresses do not restrict ICE binding. Changes affect new ICE peers, not existing ones.
+- Remote SDP candidates with parseable IP addresses found in Transmission's blocklist are now removed **before ICE negotiation**; if all advertised candidates are blocked, the session rejects the SDP. The selected remote ICE endpoint is checked again when ICE connects and before RTC peer admission. Unresolved candidates and peer-reflexive addresses not present in SDP cannot be prefiltered this way; a TURN-relayed endpoint may identify a relay rather than the underlying peer.
 - `preferred_transports` currently lists only TCP and µTP. WebRTC is an independently enabled transport, and disabling TCP/µTP does not by itself disable WebRTC.
 - Transmission has no general setting to force TCP/µTP/WebRTC peer connections through `proxy_url`; tracker proxy settings cannot guarantee proxy-only WebRTC communication.
 - WebRTC DataChannels already use DTLS, so this branch uses a plaintext BitTorrent handshake inside the encrypted DataChannel rather than BitTorrent MSE. The interaction with `encryption = required` is an outstanding policy decision.

@@ -5,6 +5,20 @@
 
 // Validate selected WebRTC ICE endpoints independently of tracker signaling.
 #include "libtransmission/rtc-endpoint.h"
+#include "libtransmission/rtc-network.h"
+
+#include <stdexcept>
+#include <string>
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wextra-semi"
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
+#include <rtc/rtc.hpp>
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 #include "test-fixtures.h"
 
 using RtcEndpointTest = ::tr::test::TransmissionTest;
@@ -44,4 +58,39 @@ TEST_F(RtcEndpointTest, RejectsMissingOrMalformedSelectedIceEndpoints)
     EXPECT_FALSE(parse("203.0.113.10:123notport"));
     EXPECT_FALSE(parse("203.0.113.10:-1"));
     EXPECT_FALSE(parse("not_an_ip:1000"));
+}
+
+TEST_F(RtcEndpointTest, UsesExplicitBindAddressForWebRtc)
+{
+    using tr_rtc_network::bind_address;
+
+    EXPECT_FALSE(bind_address("", "", 1));
+    EXPECT_FALSE(bind_address("0.0.0.0", "::", 1));
+    EXPECT_EQ(bind_address("192.0.2.10", "", 1), "192.0.2.10");
+    EXPECT_EQ(bind_address("", "2001:db8::10", 1), "2001:db8::10");
+    EXPECT_EQ(bind_address("192.0.2.10", "2001:db8::10", 1), "192.0.2.10");
+    EXPECT_EQ(bind_address("192.0.2.10", "2001:db8::10", 2), "2001:db8::10");
+    EXPECT_THROW(bind_address("2001:db8::10", "", 1), std::invalid_argument);
+    EXPECT_THROW(bind_address("", "192.0.2.10", 1), std::invalid_argument);
+    EXPECT_THROW(bind_address("not-an-ip", "", 1), std::invalid_argument);
+}
+
+TEST_F(RtcEndpointTest, FiltersBlocklistedRemoteIceCandidatesBeforeNegotiation)
+{
+    auto description = rtc::Description{
+        "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"
+        "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=mid:0\r\n",
+        rtc::Description::Type::Offer };
+    description.addCandidate(rtc::Candidate{ "candidate:1 1 UDP 2114977791 203.0.113.15 54000 typ host" });
+    description.addCandidate(rtc::Candidate{ "candidate:2 1 UDP 2114977790 198.51.100.17 55000 typ host" });
+    description.endCandidates();
+
+    auto const removed = tr_rtc_network::filter_blocklisted_candidates(
+        description,
+        [](tr_address const& address) { return address.display_name() == "203.0.113.15"; });
+
+    EXPECT_EQ(removed, 1U);
+    ASSERT_EQ(description.candidates().size(), 1U);
+    EXPECT_NE(description.candidates().front().candidate().find("198.51.100.17"), std::string::npos);
+    EXPECT_TRUE(description.ended());
 }
