@@ -314,7 +314,9 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
         {
             auto config = rtc::Configuration{};
             config.bindAddress = tr_rtc_network::bind_address(
-                session->settings().bind_address_ipv4, session->settings().bind_address_ipv6, peer_sequence);
+                session->settings().bind_address_ipv4,
+                session->settings().bind_address_ipv6,
+                peer_sequence);
             for (auto const& server : session->settings().webtorrent_ice_servers)
             {
                 if (server.starts_with("stun:") || server.starts_with("turn:") || server.starts_with("turns:"))
@@ -529,7 +531,8 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             if (removed != 0)
             {
                 tr_logAddDebug(
-                    fmt::format("WebRTC peer={} removed {} blocklisted ICE candidates", diagnostic_id, removed), "WebRTC");
+                    fmt::format("WebRTC peer={} removed {} blocklisted ICE candidates", diagnostic_id, removed),
+                    "WebRTC");
                 if (removed == candidates)
                 {
                     throw std::runtime_error("All remote ICE candidates are blocklisted");

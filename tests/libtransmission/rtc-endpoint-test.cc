@@ -80,7 +80,8 @@ TEST_F(RtcEndpointTest, FiltersBlocklistedRemoteIceCandidatesBeforeNegotiation)
     auto description = rtc::Description{
         "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"
         "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=mid:0\r\n",
-        rtc::Description::Type::Offer };
+        rtc::Description::Type::Offer
+    };
     description.addCandidate(rtc::Candidate{ "candidate:1 1 UDP 2114977791 203.0.113.15 54000 typ host" });
     description.addCandidate(rtc::Candidate{ "candidate:2 1 UDP 2114977790 198.51.100.17 55000 typ host" });
     description.endCandidates();
