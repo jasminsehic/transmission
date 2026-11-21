@@ -35,4 +35,3 @@ compile_commands.json
 
 # CMake user presets
 CMakeUserPresets.json
-/build-xcode-webtorrent/

@@ -553,7 +553,10 @@ jobs:
       - name: Confirm WebTorrent dependencies were omitted
         run: |
           set -euo pipefail
-          test ! -d src/build-xcode-webtorrent
+          if find pfx/Build/Products -type d -name webtorrent-network -print -quit | grep -q .; then
+            echo "Unexpected WebTorrent network dependency build"
+            exit 1
+          fi
           app="$(find pfx/Build/Products -path '*/Transmission.app/Contents/MacOS/Transmission' -print -quit)"
           xcrun otool -L "$app" | grep -q '/usr/lib/libcurl'
           if find pfx/Build/Products -name 'libwebtorrent-*.a' | grep -q .; then

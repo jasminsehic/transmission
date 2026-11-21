@@ -237,6 +237,6 @@ Windows installers use the existing `pack-msi` target. See [Configuration Files]
 
 ### Native macOS Xcode builds
 
-Initialize submodules recursively and install CMake and Ninja. The native Xcode project builds bundled libdatachannel, libjuice and usrsctp as static-library targets. Its WebTorrent network-dependencies target builds pinned WebSocket-enabled libcurl and OpenSSL using CMake for both arm64 and x86_64. No separate dependency shell script is required. Generated headers and separate universal `libcurl.a`, `libssl.a`, and `libcrypto.a` archives are placed in `build-xcode-webtorrent/`.
+Initialize submodules recursively and install CMake and Ninja. The native Xcode project builds bundled libdatachannel, libjuice and usrsctp as static-library targets. Its WebTorrent network-dependencies target builds pinned WebSocket-enabled libcurl and OpenSSL using CMake for both arm64 and x86_64. No separate dependency shell script is required. Generated headers and separate universal `libcurl.a`, `libssl.a`, and `libcrypto.a` archives are placed under `webtorrent-network/` in Xcode’s configuration-specific built-products directory.
 
 The default native Xcode configuration includes WebTorrent. Pass `ENABLE_WEBTORRENT=NO` to `xcodebuild` to exclude WebTorrent sources and dependencies; disabled builds retain their existing system libcurl support. Select the ordinary Xcode scheme/configuration for this project.

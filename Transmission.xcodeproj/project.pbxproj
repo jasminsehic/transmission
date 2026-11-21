@@ -1675,10 +1675,10 @@
 		FA7E00000000000000000009 /* rtc-endpoint.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "rtc-endpoint.h"; sourceTree = "<group>"; };
 		FA7E0000000000000000000A /* peer-socket-rtc.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = "peer-socket-rtc.cc"; sourceTree = "<group>"; };
 		FA7E0000000000000000000B /* peer-socket-rtc.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = "peer-socket-rtc.h"; sourceTree = "<group>"; };
-		FA7E00000000000000000041 /* libcurl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "build-xcode-webtorrent/lib/libcurl.a"; sourceTree = SOURCE_ROOT; };
+		FA7E00000000000000000041 /* libcurl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "webtorrent-network/lib/libcurl.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		55869925257074EC00F77A43 /* libcurl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurl.tbd; path = usr/lib/libcurl.tbd; sourceTree = SDKROOT; };
-		FAAF00000000000000001400 /* libssl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "build-xcode-webtorrent/lib/libssl.a"; sourceTree = SOURCE_ROOT; };
-		FAAF00000000000000001401 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "build-xcode-webtorrent/lib/libcrypto.a"; sourceTree = SOURCE_ROOT; };
+		FAAF00000000000000001400 /* libssl.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "webtorrent-network/lib/libssl.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FAAF00000000000000001401 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "webtorrent-network/lib/libcrypto.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA7E00000000000000000043 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 		FAAF00000000000000001008 /* sctp_asconf.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "sctp_asconf.c"; path = "third-party/libdatachannel/deps/usrsctp/usrsctplib/netinet/sctp_asconf.c"; sourceTree = SOURCE_ROOT; };
 		FAAF0000000000000000100A /* sctp_auth.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = "sctp_auth.c"; path = "third-party/libdatachannel/deps/usrsctp/usrsctplib/netinet/sctp_auth.c"; sourceTree = SOURCE_ROOT; };
@@ -3892,13 +3892,13 @@
 			files = ();
 			inputPaths = ("$(SRCROOT)/release/macos/webtorrent-network/CMakeLists.txt",);
 			outputPaths = (
-				"$(SRCROOT)/build-xcode-webtorrent/lib/libcurl.a",
-				"$(SRCROOT)/build-xcode-webtorrent/lib/libssl.a",
-				"$(SRCROOT)/build-xcode-webtorrent/lib/libcrypto.a",
+				"$(BUILT_PRODUCTS_DIR)/webtorrent-network/lib/libcurl.a",
+				"$(BUILT_PRODUCTS_DIR)/webtorrent-network/lib/libssl.a",
+				"$(BUILT_PRODUCTS_DIR)/webtorrent-network/lib/libcrypto.a",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\ncmake -S \"$SRCROOT/release/macos/webtorrent-network\" -B \"$SRCROOT/build-xcode-webtorrent\" -G Ninja\ncmake --build \"$SRCROOT/build-xcode-webtorrent\" --parallel \"$(sysctl -n hw.logicalcpu)\"\n";
+			shellScript = "set -eu\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\ncmake -S \"$SRCROOT/release/macos/webtorrent-network\" -B \"$BUILT_PRODUCTS_DIR/webtorrent-network\" -G Ninja\ncmake --build \"$BUILT_PRODUCTS_DIR/webtorrent-network\" --parallel \"$(sysctl -n hw.logicalcpu)\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -4908,7 +4908,7 @@
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(BUILT_PRODUCTS_DIR)/webtorrent-network/include",
 					"$(SRCROOT)/third-party/libdatachannel/include",
 					"third-party/dht",
 					"third-party/fast_float/include",
@@ -5121,7 +5121,7 @@
 				INFOPLIST_OTHER_PREPROCESSOR_FLAGS = "-traditional";
 				INFOPLIST_PREFIX_HEADER = libtransmission/version.h;
 				INFOPLIST_PREPROCESS = YES;
-				LIBRARY_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/build-xcode-webtorrent/lib");
+				LIBRARY_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)/webtorrent-network/lib");
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
@@ -5173,7 +5173,7 @@
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(BUILT_PRODUCTS_DIR)/webtorrent-network/include",
 					"$(SRCROOT)/third-party/libdatachannel/include",
 					"third-party/dht",
 					"third-party/fast_float/include",
@@ -5343,7 +5343,7 @@
 				INFOPLIST_OTHER_PREPROCESSOR_FLAGS = "-traditional";
 				INFOPLIST_PREFIX_HEADER = libtransmission/version.h;
 				INFOPLIST_PREPROCESS = YES;
-				LIBRARY_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/build-xcode-webtorrent/lib");
+				LIBRARY_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)/webtorrent-network/lib");
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				OTHER_CFLAGS = (
 					"$(inherited)",
@@ -5457,7 +5457,7 @@
 				INFOPLIST_OTHER_PREPROCESSOR_FLAGS = "-traditional";
 				INFOPLIST_PREFIX_HEADER = libtransmission/version.h;
 				INFOPLIST_PREPROCESS = YES;
-				LIBRARY_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/build-xcode-webtorrent/lib");
+				LIBRARY_SEARCH_PATHS = ("$(inherited)", "$(BUILT_PRODUCTS_DIR)/webtorrent-network/lib");
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
@@ -5528,7 +5528,7 @@
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(BUILT_PRODUCTS_DIR)/webtorrent-network/include",
 					"$(SRCROOT)/third-party/libdatachannel/include",
 					"third-party/dht",
 					"third-party/fast_float/include",
@@ -6358,7 +6358,7 @@
 					"$(SRCROOT)/third-party/libdatachannel/deps/plog/include",
 					"$(SRCROOT)/third-party/libdatachannel/deps/libjuice/include",
 					"$(SRCROOT)/third-party/libdatachannel/deps/usrsctp/usrsctplib",
-					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(BUILT_PRODUCTS_DIR)/webtorrent-network/include",
 				);
 				OTHER_CFLAGS = (
 					"$(inherited)",
@@ -6390,7 +6390,7 @@
 					"$(SRCROOT)/third-party/libdatachannel/deps/plog/include",
 					"$(SRCROOT)/third-party/libdatachannel/deps/libjuice/include",
 					"$(SRCROOT)/third-party/libdatachannel/deps/usrsctp/usrsctplib",
-					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(BUILT_PRODUCTS_DIR)/webtorrent-network/include",
 				);
 				OTHER_CFLAGS = (
 					"$(inherited)",
@@ -6422,7 +6422,7 @@
 					"$(SRCROOT)/third-party/libdatachannel/deps/plog/include",
 					"$(SRCROOT)/third-party/libdatachannel/deps/libjuice/include",
 					"$(SRCROOT)/third-party/libdatachannel/deps/usrsctp/usrsctplib",
-					"$(SRCROOT)/build-xcode-webtorrent/include",
+					"$(BUILT_PRODUCTS_DIR)/webtorrent-network/include",
 				);
 				OTHER_CFLAGS = (
 					"$(inherited)",
