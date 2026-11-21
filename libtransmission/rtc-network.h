@@ -48,7 +48,11 @@ namespace tr_rtc_network
         auto const address = tr_address::from_string(value);
         if (!address || address->is_ipv4() != want_ipv4)
         {
+#if !defined(_WIN32) || !defined(__clang_analyzer__)
             throw std::invalid_argument("Invalid WebRTC bind address");
+#else
+            return {};
+#endif
         }
         return address->is_any() ? std::nullopt : std::optional<std::string>{ address->display_name() };
     };
@@ -63,7 +67,7 @@ namespace tr_rtc_network
 }
 
 template<typename IsBlocked>
-[[nodiscard]] std::size_t filter_blocklisted_candidates(rtc::Description& description, IsBlocked&& is_blocked)
+[[nodiscard]] std::size_t filter_blocklisted_candidates(rtc::Description& description, IsBlocked const& is_blocked)
 {
     auto const ended = description.ended();
     auto candidates = description.extractCandidates();

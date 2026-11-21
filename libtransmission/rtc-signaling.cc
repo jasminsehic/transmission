@@ -535,7 +535,9 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                     "WebRTC");
                 if (removed == candidates)
                 {
+#ifndef WORKAROUND_CLANG_TIDY_GH44701
                     throw std::runtime_error("All remote ICE candidates are blocklisted");
+#endif
                 }
             }
             return removed;
