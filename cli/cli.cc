@@ -80,12 +80,7 @@ auto constexpr Options = std::array<tr_option, 23>{ {
     { 500, "sequential-download", "Download pieces sequentially", "seq", Arg::None, nullptr },
     { 833, "webtorrent", "Enable WS/WSS trackers and WebRTC peers", nullptr, Arg::None, nullptr },
     { 834, "no-webtorrent", "Disable WS/WSS trackers and WebRTC peers", nullptr, Arg::None, nullptr },
-    { 835,
-      "webtorrent-ice-servers",
-      "Comma-separated STUN/TURN server URLs for WebRTC",
-      nullptr,
-      Arg::Required,
-      "<urls>" },
+    { 835, "webtorrent-ice-servers", "Comma-separated STUN/TURN server URLs for WebRTC", nullptr, Arg::Required, "<urls>" },
 
     { 0, nullptr, nullptr, nullptr, Arg::None, nullptr },
 } };
