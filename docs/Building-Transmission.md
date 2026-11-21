@@ -207,14 +207,36 @@ cmake --build build
 
 ## Optional WebTorrent support
 
-CMake builds include WebSocket (WS/WSS) trackers and WebRTC DataChannel peers by default. Set `-DENABLE_WEBTORRENT=OFF` to omit support. WebTorrent is disabled by default at runtime.
+### Configure with CMake
 
-Requirements:
-* libcurl 7.86.0 or newer, built with WS and WSS support.
-* libdatachannel 0.24.6 or newer. The bundled build disables media and libdatachannel's WebSocket implementation.
+This branch defaults to `ENABLE_WEBTORRENT=ON`, adding WS/WSS tracker and WebRTC DataChannel support. Runtime use is separately disabled until `webtorrent_enabled=true` (or `--webtorrent`) is set.
 
-Initialize Git submodules recursively to build the bundled dependencies. `USE_SYSTEM_LIBDATACHANNEL=AUTO` uses a compatible system installation when available; set it to `ON` to require a system installation or `OFF` to use the bundled dependency. On Windows, the static LibDataChannel target is required.
+```sh
+git submodule update --init --recursive
+cmake -S . -B build -DENABLE_WEBTORRENT=ON -DENABLE_DAEMON=ON -DENABLE_CLI=ON
+cmake --build build --target transmission-daemon transmission-cli transmission-remote
+```
 
-Windows installers use the existing `pack-msi` target. See [Configuration Files](Configuration-Files.md) for runtime settings.
+To compile without WebTorrent-specific sources and dependencies, use a separate build directory:
 
-For native macOS Xcode builds, initialize the submodules recursively and install CMake and Ninja. The Xcode project builds bundled libdatachannel, libjuice, and usrsctp as native static-library targets. Its WebTorrent network-dependencies target automatically builds pinned WebSocket-enabled libcurl and OpenSSL through CMake for both arm64 and x86_64. No separate dependency script is required. Generated headers and separate universal `libcurl.a`, `libssl.a`, and `libcrypto.a` archives are placed in `build-xcode-webtorrent/`. Pass `ENABLE_WEBTORRENT=NO` to `xcodebuild` to omit the WebTorrent sources and dependencies from the Xcode build.
+```sh
+cmake -S . -B build-no-webtorrent -DENABLE_WEBTORRENT=OFF
+cmake --build build-no-webtorrent
+```
+
+The standalone `transmission-cli` target is optional (`ENABLE_CLI=OFF` by default). Runtime options `--webtorrent`, `--no-webtorrent`, and `--webtorrent-ice-servers` do not enable compile-time support. See [Headless Usage](Headless-Usage.md#webtorrent-command-line-configuration) and the [RPC specification](rpc-spec.md#41-session-parameters).
+
+### Dependencies
+
+* libcurl **7.86.0 or newer** with working WS/WSS support. Version alone is insufficient: some system libcurl builds omit WebSocket functionality.
+* libdatachannel with the required WebRTC/ICE API (minimum **0.24.6** in the current CMake configuration), together with libjuice and usrsctp. The bundled revision includes the locale-independent SDP serialization fix from a subsequent libdatachannel fix, merged after v0.24.6. Stock v0.24.6 system builds do **not** include that fix.
+
+Initialize Git submodules recursively for bundled dependencies. `USE_SYSTEM_LIBDATACHANNEL=AUTO` uses a compatible installed library if available; `ON` requires it, while `OFF` uses the bundled dependency. Until a system release includes the SDP locale fix, prefer `-DUSE_SYSTEM_LIBDATACHANNEL=OFF` for reproducible WebTorrent interoperation. The bundled configuration disables libdatachannel media and WebSocket components. Windows requires its static library target.
+
+Windows installers use the existing `pack-msi` target. See [Configuration Files](Configuration-Files.md#webtorrent-settings) for runtime settings.
+
+### Native macOS Xcode builds
+
+Initialize submodules recursively and install CMake and Ninja. The native Xcode project builds bundled libdatachannel, libjuice and usrsctp as static-library targets. Its WebTorrent network-dependencies target builds pinned WebSocket-enabled libcurl and OpenSSL using CMake for both arm64 and x86_64. No separate dependency shell script is required. Generated headers and separate universal `libcurl.a`, `libssl.a`, and `libcrypto.a` archives are placed in `build-xcode-webtorrent/`.
+
+The default native Xcode configuration includes WebTorrent. Pass `ENABLE_WEBTORRENT=NO` to `xcodebuild` to exclude WebTorrent sources and dependencies; disabled builds retain their existing system libcurl support. Select the ordinary Xcode scheme/configuration for this project.

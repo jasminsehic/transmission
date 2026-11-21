@@ -43,7 +43,7 @@ This is a JSON-encoded file that holds all the client's settings and preferences
 
 #### WebTorrent settings
 
-When built with `ENABLE_WEBTORRENT=ON`, `webtorrent_enabled` (default `false`) enables WebSocket trackers and WebRTC peers. `webtorrent_ice_servers` specifies STUN and TURN servers. Both settings are also available through the `session_get` and `session_set` RPC methods.
+When built with `ENABLE_WEBTORRENT=ON`, `webtorrent_enabled` (default `false`) enables WebSocket trackers and WebRTC peers. `webtorrent_ice_servers` specifies STUN and TURN servers. Both settings are also available through the `session_get` and `session_set` RPC methods. The standalone CLI, daemon, and remote clients support `--webtorrent`, `--no-webtorrent`, and `--webtorrent-ice-servers` (comma-separated URLs, or an empty value to clear the list). See [Headless Usage](Headless-Usage.md#webtorrent-command-line-configuration).
 
 WS/WSS tracker requests use the configured `proxy_url`, if any. WebRTC ICE connections do not use the tracker proxy. SDP offers may disclose ICE candidate addresses to trackers and remote peers.
 
