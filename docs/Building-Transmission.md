@@ -229,9 +229,9 @@ The standalone `transmission-cli` target is optional (`ENABLE_CLI=OFF` by defaul
 ### Dependencies
 
 * libcurl **7.86.0 or newer** with working WS/WSS support. Version alone is insufficient: some system libcurl builds omit WebSocket functionality.
-* libdatachannel with the required WebRTC/ICE API (minimum **0.24.6** in the current CMake configuration), together with libjuice and usrsctp. The bundled revision includes the locale-independent SDP serialization fix from a subsequent libdatachannel fix, merged after v0.24.6. Stock v0.24.6 system builds do **not** include that fix.
+* libdatachannel with the required WebRTC/ICE API (minimum **0.24.6** in the current CMake configuration), together with libjuice and usrsctp.
 
-Initialize Git submodules recursively for bundled dependencies. `USE_SYSTEM_LIBDATACHANNEL=AUTO` uses a compatible installed library if available; `ON` requires it, while `OFF` uses the bundled dependency. Until a system release includes the SDP locale fix, prefer `-DUSE_SYSTEM_LIBDATACHANNEL=OFF` for reproducible WebTorrent interoperation. The bundled configuration disables libdatachannel media and WebSocket components. Windows requires its static library target.
+Initialize Git submodules recursively for bundled dependencies. `USE_SYSTEM_LIBDATACHANNEL=AUTO` uses a compatible installed library if available; `ON` requires it, while `OFF` uses the bundled dependency. The bundled configuration disables libdatachannel media and WebSocket components. Windows requires its static library target.
 
 Windows installers use the existing `pack-msi` target. See [Configuration Files](Configuration-Files.md#webtorrent-settings) for runtime settings.
 
