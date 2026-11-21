@@ -24,13 +24,25 @@ extern wchar_t qAxModuleFilename[MAX_PATH]; // NOLINT
 extern QString qAxInit(); // NOLINT
 
 ComInteropHelper::ComInteropHelper()
-    : client_{ new QAxObject{ QStringLiteral("Transmission.QtClient") } }
 {
+    // Find an existing Transmission instance without activating a COM server.
+    auto clsid = CLSID{};
+    if (FAILED(::CLSIDFromString(L"{0e2c952c-0597-491f-ba26-249d7e6fab49}", &clsid)))
+    {
+        return;
+    }
+
+    IUnknown* active = nullptr;
+    if (SUCCEEDED(::GetActiveObject(clsid, nullptr, &active)) && active != nullptr)
+    {
+        client_.reset(new QAxObject{ active });
+        active->Release();
+    }
 }
 
 bool ComInteropHelper::isConnected() const
 {
-    return !client_->isNull();
+    return client_ != nullptr;
 }
 
 QVariant ComInteropHelper::addMetainfo(QString const& metainfo) const

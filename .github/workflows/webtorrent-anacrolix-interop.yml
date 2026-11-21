@@ -1,0 +1,288 @@
+name: WebTorrent anacrolix interoperability
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/webtorrent-anacrolix-interop.yml'
+      - '.github/actions/install-deps/**'
+      - '.github/actions/prepare-deps-win32/**'
+      - '.github/actions/setup-vs-env-win32/**'
+      - 'release/windows/**'
+      - 'tests/interoperability/**'
+      - 'libtransmission/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'third-party/libdatachannel'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  anacrolix-interop:
+    name: Linux (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out Transmission and WebRTC dependencies
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Install Transmission build dependencies
+        uses: ./.github/actions/install-deps
+        with:
+          compiler: clang
+          use-sudo: true
+      - name: Check out pinned libcurl
+        uses: actions/checkout@v6
+        with:
+          repository: curl/curl
+          ref: 11b991232fbcaa88e2b1faecac224416b0001e35 # curl 8.16.0
+          path: curl-ws-src
+          persist-credentials: false
+      - name: Build libcurl with WebSocket support
+        run: |
+          cmake -S curl-ws-src -B curl-ws-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/curl-ws" \
+            -DBUILD_SHARED_LIBS=ON -DBUILD_CURL_EXE=ON \
+            -DCURL_USE_OPENSSL=ON -DCURL_DISABLE_WEBSOCKETS=OFF \
+            -DCURL_USE_LIBPSL=OFF
+          cmake --build curl-ws-build --parallel 3
+          cmake --install curl-ws-build
+      - name: Verify libcurl WebSocket protocols
+        run: |
+          "$RUNNER_TEMP/curl-ws/bin/curl-config" --version
+          "$RUNNER_TEMP/curl-ws/bin/curl-config" --protocols
+          "$RUNNER_TEMP/curl-ws/bin/curl-config" --protocols | grep -qx 'WS'
+          "$RUNNER_TEMP/curl-ws/bin/curl-config" --protocols | grep -qx 'WSS'
+      - name: Configure WebTorrent daemon
+        run: |
+          cmake -S . -B build-interop -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DENABLE_WEBTORRENT=ON -DENABLE_TESTS=OFF \
+            -DENABLE_GTK=OFF -DENABLE_QT=OFF -DENABLE_MAC=OFF \
+            -DENABLE_CLI=OFF -DENABLE_DAEMON=ON \
+            -DREBUILD_WEB=OFF -DRUN_CLANG_TIDY=OFF \
+            -DCURL_ROOT="$RUNNER_TEMP/curl-ws" \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/curl-ws" \
+            -DCMAKE_BUILD_RPATH="$RUNNER_TEMP/curl-ws/lib" \
+            -DUSE_SYSTEM_DEFAULT=ON \
+            -DUSE_SYSTEM_DHT=OFF -DUSE_SYSTEM_SIGSLOT=OFF \
+            -DUSE_SYSTEM_SMALL=OFF -DUSE_SYSTEM_UTP=OFF \
+            -DUSE_SYSTEM_WIDE_INTEGER=OFF
+      - name: Build Transmission daemon
+        run: cmake --build build-interop --target transmission-daemon -j 3
+      - name: Check out pinned independent anacrolix/Pion client
+        uses: actions/checkout@v6
+        with:
+          repository: jasminsehic/torrent
+          ref: 40144f54349deb3b3a67e74764f1d36eeefc899d
+          path: anacrolix-src
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: anacrolix-src/go.mod
+          cache-dependency-path: anacrolix-src/go.sum
+      - name: Build independent anacrolix/Pion peer
+        run: |
+          cd anacrolix-src
+          GOWORK=off go build -o "$GITHUB_WORKSPACE/anacrolix-interop-peer" \
+            "$GITHUB_WORKSPACE/tests/interoperability/anacrolix-peer.go"
+      - name: Verify bidirectional peer-to-peer WebRTC transfers
+        timeout-minutes: 12
+        env:
+          LD_LIBRARY_PATH: ${{ runner.temp }}/curl-ws/lib
+        run: |
+          python3 tests/interoperability/run-anacrolix-interop.py \
+            --daemon build-interop/daemon/transmission-daemon \
+            --peer ./anacrolix-interop-peer \
+            --workdir "$RUNNER_TEMP/webtorrent-interop"
+      - name: Upload interoperability logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: webtorrent-anacrolix-interop-logs
+          path: ${{ runner.temp }}/webtorrent-interop/**
+          if-no-files-found: ignore
+
+  # Reuse the dependency cache namespace of Sanity's Windows x64 job.
+  windows:
+    name: Windows (x64)
+    runs-on: windows-2022
+    timeout-minutes: 80
+    steps:
+      - name: Check out Transmission and WebRTC dependencies
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Prepare Windows dependencies
+        uses: ./.github/actions/prepare-deps-win32
+        with:
+          arch: x64
+          type: Deps
+      - name: Set up Visual Studio environment
+        uses: ./.github/actions/setup-vs-env-win32
+        with:
+          arch: x64
+      - name: Configure WebTorrent daemon
+        shell: pwsh
+        run: |
+          $CmakeArgs = @(
+            '-S .'
+            '-B build-interop'
+            '-G Ninja'
+            '-DCMAKE_BUILD_TYPE=RelWithDebInfo'
+            "-DCMAKE_PREFIX_PATH=`"$Env:DEPS_PREFIX`""
+            '-DENABLE_WEBTORRENT=ON'
+            '-DENABLE_TESTS=OFF'
+            '-DENABLE_CLI=OFF'
+            '-DENABLE_DAEMON=ON'
+            '-DENABLE_GTK=OFF'
+            '-DENABLE_QT=OFF'
+            '-DENABLE_MAC=OFF'
+            '-DREBUILD_WEB=OFF'
+            '-DRUN_CLANG_TIDY=OFF'
+            '-DUSE_SYSTEM_DEFAULT=OFF'
+          )
+          cmd /c "`"$Env:VCVARSALL`" $Env:VC_ARCH >nul && cmake $($CmakeArgs -join ' ')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build Transmission daemon
+        shell: pwsh
+        run: |
+          cmd /c "`"$Env:VCVARSALL`" $Env:VC_ARCH >nul && cmake --build build-interop --config RelWithDebInfo --target transmission-daemon --parallel 3"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check out pinned independent anacrolix/Pion client
+        uses: actions/checkout@v6
+        with:
+          repository: jasminsehic/torrent
+          ref: 40144f54349deb3b3a67e74764f1d36eeefc899d
+          path: anacrolix-src
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: anacrolix-src/go.mod
+          cache-dependency-path: anacrolix-src/go.sum
+      - name: Build independent anacrolix/Pion peer
+        working-directory: anacrolix-src
+        shell: pwsh
+        run: |
+          $env:GOWORK = 'off'
+          go build -o "$env:GITHUB_WORKSPACE/anacrolix-interop-peer.exe" "$env:GITHUB_WORKSPACE/tests/interoperability/anacrolix-peer.go"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify bidirectional peer-to-peer WebRTC transfers
+        timeout-minutes: 12
+        shell: pwsh
+        run: |
+          python tests/interoperability/run-anacrolix-interop.py `
+            --daemon build-interop/daemon/transmission-daemon.exe `
+            --peer ./anacrolix-interop-peer.exe `
+            --workdir "$env:RUNNER_TEMP/webtorrent-interop"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload interoperability logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: webtorrent-anacrolix-interop-windows-logs
+          path: ${{ runner.temp }}/webtorrent-interop/**
+          if-no-files-found: ignore
+
+  anacrolix-interop-macos:
+    name: macOS
+    runs-on: macos-26
+    timeout-minutes: 70
+    steps:
+      - name: Check out Transmission and WebRTC dependencies
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Install Transmission build dependencies
+        uses: ./.github/actions/install-deps
+        with:
+          compiler: system-default
+      - name: Check out pinned libcurl
+        uses: actions/checkout@v6
+        with:
+          repository: curl/curl
+          ref: 11b991232fbcaa88e2b1faecac224416b0001e35 # curl 8.16.0
+          path: curl-ws-src
+          persist-credentials: false
+      - name: Build libcurl with WebSocket support
+        run: |
+          brew install --formula openssl@3
+          cmake -S curl-ws-src -B curl-ws-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/curl-ws" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix openssl@3)" \
+            -DBUILD_SHARED_LIBS=ON -DBUILD_CURL_EXE=ON \
+            -DCURL_USE_OPENSSL=ON -DCURL_DISABLE_WEBSOCKETS=OFF \
+            -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
+            -DCURL_USE_LIBPSL=OFF
+          cmake --build curl-ws-build --parallel 3
+          cmake --install curl-ws-build
+      - name: Verify libcurl WebSocket protocols
+        run: |
+          "$RUNNER_TEMP/curl-ws/bin/curl-config" --version
+          "$RUNNER_TEMP/curl-ws/bin/curl-config" --protocols
+          "$RUNNER_TEMP/curl-ws/bin/curl-config" --protocols | grep -qx 'WS'
+          "$RUNNER_TEMP/curl-ws/bin/curl-config" --protocols | grep -qx 'WSS'
+          DYLD_LIBRARY_PATH="$RUNNER_TEMP/curl-ws/lib" "$RUNNER_TEMP/curl-ws/bin/curl" --version
+      - name: Configure WebTorrent daemon
+        run: |
+          cmake -S . -B build-interop -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCURL_ROOT="$RUNNER_TEMP/curl-ws" \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/curl-ws;$(brew --prefix)" \
+            -DCMAKE_BUILD_RPATH="$RUNNER_TEMP/curl-ws/lib" \
+            -DENABLE_WEBTORRENT=ON -DENABLE_TESTS=OFF \
+            -DENABLE_GTK=OFF -DENABLE_QT=OFF -DENABLE_MAC=OFF \
+            -DENABLE_CLI=OFF -DENABLE_DAEMON=ON \
+            -DREBUILD_WEB=OFF -DRUN_CLANG_TIDY=OFF \
+            -DUSE_SYSTEM_DEFAULT=ON \
+            -DUSE_SYSTEM_DHT=OFF -DUSE_SYSTEM_SIGSLOT=OFF \
+            -DUSE_SYSTEM_SMALL=OFF -DUSE_SYSTEM_UTP=OFF \
+            -DUSE_SYSTEM_WIDE_INTEGER=OFF
+      - name: Build Transmission daemon
+        run: cmake --build build-interop --target transmission-daemon -j 3
+      - name: Check daemon libcurl linkage
+        run: otool -L build-interop/daemon/transmission-daemon | grep -i curl
+      - name: Check out pinned independent anacrolix/Pion client
+        uses: actions/checkout@v6
+        with:
+          repository: jasminsehic/torrent
+          ref: 40144f54349deb3b3a67e74764f1d36eeefc899d
+          path: anacrolix-src
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: anacrolix-src/go.mod
+          cache-dependency-path: anacrolix-src/go.sum
+      - name: Build independent anacrolix/Pion peer
+        run: |
+          cd anacrolix-src
+          GOWORK=off go build -o "$GITHUB_WORKSPACE/anacrolix-interop-peer" \
+            "$GITHUB_WORKSPACE/tests/interoperability/anacrolix-peer.go"
+      - name: Verify bidirectional peer-to-peer WebRTC transfers
+        timeout-minutes: 12
+        env:
+          DYLD_LIBRARY_PATH: ${{ runner.temp }}/curl-ws/lib
+        run: |
+          python3 tests/interoperability/run-anacrolix-interop.py \
+            --daemon build-interop/daemon/transmission-daemon \
+            --peer ./anacrolix-interop-peer \
+            --workdir "$RUNNER_TEMP/webtorrent-interop"
+      - name: Upload interoperability logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: webtorrent-anacrolix-interop-macos-logs
+          path: ${{ runner.temp }}/webtorrent-interop/**
+          if-no-files-found: ignore
