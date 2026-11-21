@@ -64,7 +64,7 @@ protected:
         }
     }
 
-    void exercise(bool verify_complete);
+    void exercise();
 };
 
 struct WebTorrentTestTracker
@@ -81,7 +81,6 @@ struct WebTorrentTestTracker
     std::atomic<uint64_t> served_bytes = 0;
     std::atomic<uint32_t> piece_count = 0;
     std::atomic<uint64_t> total_size = 0;
-    bool serve_pieces = false;
     bool handshake_read = false;
     std::vector<std::byte> received;
     std::string const remote_peer_id = "-TEST00-123456789012";
@@ -107,7 +106,7 @@ void appendU32(rtc::binary& buffer, uint32_t value)
 }
 } // namespace
 
-void WebTorrentEndToEndTest::exercise(bool const verify_complete)
+void WebTorrentEndToEndTest::exercise()
 {
     auto cfg = test_ws::WebSocketServer::Configuration{};
     cfg.port = 0;
@@ -115,7 +114,6 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
     auto server = std::make_shared<test_ws::WebSocketServer>(cfg);
     ASSERT_TRUE(server->ready()) << server->error();
     auto state = std::make_shared<WebTorrentTestTracker>();
-    state->serve_pieces = verify_complete;
 
     server->onClient(
         [state](std::shared_ptr<test_ws::WebSocket> const& ws)
@@ -261,21 +259,18 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
                                             state->got_handshake = true;
                                             state->received.erase(state->received.begin(), state->received.begin() + 68);
 
-                                            if (state->serve_pieces)
+                                            auto const count = state->piece_count.load();
+                                            auto const n = (count + 7U) / 8U;
+                                            auto bits = rtc::binary{};
+                                            appendU32(bits, 1U + n);
+                                            bits.push_back(std::byte{ 5 });
+                                            bits.resize(bits.size() + n, std::byte{ 0 });
+                                            for (uint32_t i = 0; i < count; ++i)
                                             {
-                                                auto const count = state->piece_count.load();
-                                                auto const n = (count + 7U) / 8U;
-                                                auto bits = rtc::binary{};
-                                                appendU32(bits, 1U + n);
-                                                bits.push_back(std::byte{ 5 });
-                                                bits.resize(bits.size() + n, std::byte{ 0 });
-                                                for (uint32_t i = 0; i < count; ++i)
-                                                {
-                                                    bits[5U + (i / 8U)] |= std::byte{ static_cast<unsigned char>(
-                                                        0x80U >> (i % 8U)) };
-                                                }
-                                                replies.emplace_back(std::move(bits));
+                                                bits[5U + (i / 8U)] |= std::byte{ static_cast<unsigned char>(
+                                                    0x80U >> (i % 8U)) };
                                             }
+                                            replies.emplace_back(std::move(bits));
                                         }
 
                                         // A DataChannel message is not a BitTorrent frame boundary:
@@ -319,7 +314,7 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
                                                 }
                                             }
 
-                                            if (state->serve_pieces && frame_size > 0U)
+                                            if (frame_size > 0U)
                                             {
                                                 auto const message_id = std::to_integer<unsigned char>(state->received[4U]);
                                                 if (message_id == 2U)
@@ -460,13 +455,10 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
     }
     EXPECT_TRUE(found_rtc);
 
-    if (verify_complete)
-    {
-        EXPECT_TRUE(tr::test::waitFor([tor] { return tr_torrentStat(tor).percent_done >= 1.0; }, 60000))
-            << "WebRTC peer exchanged the handshake but failed to deliver a verified torrent";
-        EXPECT_GE(state->served_bytes.load(), state->total_size.load())
-            << "The local browser-style peer did not serve the full payload";
-    }
+    EXPECT_TRUE(tr::test::waitFor([tor] { return tr_torrentStat(tor).percent_done >= 1.0; }, 60000))
+        << "WebRTC peer exchanged the handshake but failed to deliver a verified torrent";
+    EXPECT_GE(state->served_bytes.load(), state->total_size.load())
+        << "The local WebRTC peer did not serve the full payload";
 
     tr_torrentStop(tor);
     server->onClient(nullptr);
@@ -494,12 +486,7 @@ void WebTorrentEndToEndTest::exercise(bool const verify_complete)
     server->stop();
 }
 
-TEST_F(WebTorrentEndToEndTest, BrowserStylePeerCompletesBitTorrentHandshake)
+TEST_F(WebTorrentEndToEndTest, WebRtcPeerDownloadsAndVerifiesTorrent)
 {
-    exercise(false);
-}
-
-TEST_F(WebTorrentEndToEndTest, BrowserStylePeerDownloadsAndVerifiesTorrent)
-{
-    exercise(true);
+    exercise();
 }
