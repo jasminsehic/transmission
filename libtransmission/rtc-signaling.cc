@@ -588,7 +588,10 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             attach_channel(dc);
         }
 
-        [[nodiscard]] tr_error start_incoming(tr_ws_tracker::Signal const& signal, std::string our_peer, tr_rtc_signaling::SendAnswer send)
+        [[nodiscard]] tr_error start_incoming(
+            tr_ws_tracker::Signal const& signal,
+            std::string our_peer,
+            tr_rtc_signaling::SendAnswer send)
         {
             tr_logAddDebug(fmt::format("WebRTC peer={} incoming offer processing", diagnostic_id), "WebRTC");
             remote_offer_id = signal.offer_id;
