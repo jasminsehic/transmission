@@ -683,10 +683,12 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                                 if (!p.attached)
                                 {
                                     auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                        std::chrono::steady_clock::now() - p.created).count();
+                                        std::chrono::steady_clock::now() - p.created)
+                                                            .count();
                                     tr_logAddDebug(
                                         fmt::format(
-                                            "WebRTC peer={} data-channel-closed-before-open age-ms={} ice={} connection={}",
+                                            "WebRTC peer={} data-channel-closed-before-open age-ms={} "
+                                            "ice={} connection={}",
                                             p.diagnostic_id,
                                             age_ms,
                                             p.last_ice_state,
@@ -711,7 +713,8 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                                         std::chrono::steady_clock::now() - p.created).count();
                                     tr_logAddDebug(
                                         fmt::format(
-                                            "WebRTC peer={} data-channel-error-before-open age-ms={} ice={} connection={} detail={}",
+                                            "WebRTC peer={} data-channel-error-before-open age-ms={} "
+                                            "ice={} connection={} detail={}",
                                             p.diagnostic_id,
                                             age_ms,
                                             p.last_ice_state,
@@ -723,7 +726,10 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                     }
                 });
             tr_logAddDebug(
-                fmt::format("WebRTC peer={} data-channel-created direction={}", diagnostic_id, incoming ? "incoming" : "outgoing"),
+                fmt::format(
+                    "WebRTC peer={} data-channel-created direction={}",
+                    diagnostic_id,
+                    incoming ? "incoming" : "outgoing"),
                 "WebRTC");
             if (dc->isOpen())
             {
@@ -760,7 +766,8 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             }
             attached = true;
             channel_opened = std::chrono::steady_clock::now();
-            auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(*channel_opened - created).count();
+            auto const age_ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(*channel_opened - created).count();
             tr_logAddDebug(
                 fmt::format(
                     "WebRTC peer={} data-channel-open age-ms={} direction={} remote={}",
