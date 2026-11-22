@@ -66,7 +66,9 @@ public:
 
     ~tr_peer_socket_rtc_impl() noexcept override
     {
+#ifndef WORKAROUND_CLANG_TIDY_GH44701
         try
+#endif
         {
             if (dc_)
             {
@@ -80,10 +82,12 @@ public:
                 dc_->onError(nullptr);
             }
         }
+#ifndef WORKAROUND_CLANG_TIDY_GH44701
         catch (...)
         {
             // Destruction must not propagate exceptions from libdatachannel callbacks.
         }
+#endif
     }
 
     void init()
