@@ -237,8 +237,18 @@ void init_libdatachannel_logging()
 {
     static auto once = std::once_flag{};
     std::call_once(once, [] {
+        auto log_level = rtc::LogLevel::Info;
+        if (tr_logLevelIsActive(TR_LOG_DEBUG))
+        {
+            log_level = rtc::LogLevel::Debug;
+        }
+        if (tr_logLevelIsActive(TR_LOG_TRACE))
+        {
+            log_level = rtc::LogLevel::Verbose;
+        }
+
         rtc::InitLogger(
-            rtc::LogLevel::Verbose,
+            log_level,
             [](rtc::LogLevel level, std::string message) {
                 if (level == rtc::LogLevel::Verbose && !is_libdatachannel_verbose_diagnostic(message))
                 {
