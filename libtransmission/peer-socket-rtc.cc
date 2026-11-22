@@ -230,10 +230,11 @@ private:
             0U;
         tr_logAddDebug(
             fmt::format(
-                "WebRTC data channel {} endpoint={} open={} available={} buffered={} bytes-queued={} "
+                "WebRTC data channel {} endpoint={} phase={} open={} available={} buffered={} bytes-queued={} "
                 "bytes-received={} pending-message={} pending-offset={}",
                 event,
                 display_name(),
+                bytes_received_.load() == 0U ? "before-first-read" : "after-first-read",
                 dc_ && dc_->isOpen(),
                 available,
                 buffered,
