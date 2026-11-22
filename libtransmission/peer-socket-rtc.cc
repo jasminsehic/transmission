@@ -86,6 +86,7 @@ public:
         catch (...)
         {
             // Destruction must not propagate exceptions from libdatachannel callbacks.
+            tr_logAddWarn("Exception while unregistering libdatachannel callbacks", "WebRTC");
         }
 #endif
     }
