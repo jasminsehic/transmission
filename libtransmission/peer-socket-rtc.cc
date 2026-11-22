@@ -64,18 +64,25 @@ public:
     tr_peer_socket_rtc_impl(tr_peer_socket_rtc_impl&&) = delete;
     tr_peer_socket_rtc_impl& operator=(tr_peer_socket_rtc_impl&&) = delete;
 
-    ~tr_peer_socket_rtc_impl() override
+    ~tr_peer_socket_rtc_impl() noexcept override
     {
-        if (dc_)
+        try
         {
-            if (dc_->isOpen())
+            if (dc_)
             {
-                log_transport_snapshot("socket-destroyed-while-open");
+                if (dc_->isOpen())
+                {
+                    log_transport_snapshot("socket-destroyed-while-open");
+                }
+                dc_->onAvailable(nullptr);
+                dc_->onBufferedAmountLow(nullptr);
+                dc_->onClosed(nullptr);
+                dc_->onError(nullptr);
             }
-            dc_->onAvailable(nullptr);
-            dc_->onBufferedAmountLow(nullptr);
-            dc_->onClosed(nullptr);
-            dc_->onError(nullptr);
+        }
+        catch (...)
+        {
+            // Destruction must not propagate exceptions from libdatachannel callbacks.
         }
     }
 

@@ -14,6 +14,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -221,6 +222,56 @@ std::string new_offer_id()
     }
     return result;
 }
+
+bool is_libdatachannel_verbose_diagnostic(std::string_view message)
+{
+    return message.find("SCTP reset event") != std::string_view::npos ||
+        message.find("SCTP association change event") != std::string_view::npos ||
+        message.find("Processing notification, type=") != std::string_view::npos ||
+        message.find("SCTP shutdown") != std::string_view::npos ||
+        message.find("SCTP early shutdown") != std::string_view::npos ||
+        message.find("SCTP already shut down") != std::string_view::npos;
+}
+
+void init_libdatachannel_logging()
+{
+    static auto once = std::once_flag{};
+    std::call_once(once, [] {
+        rtc::InitLogger(
+            rtc::LogLevel::Verbose,
+            [](rtc::LogLevel level, std::string message) {
+                if (level == rtc::LogLevel::Verbose && !is_libdatachannel_verbose_diagnostic(message))
+                {
+                    return;
+                }
+
+                switch (level)
+                {
+                case rtc::LogLevel::Fatal:
+                    tr_logAddCritical(std::move(message), "libdatachannel");
+                    break;
+                case rtc::LogLevel::Error:
+                    tr_logAddError(std::move(message), "libdatachannel");
+                    break;
+                case rtc::LogLevel::Warning:
+                    tr_logAddWarn(std::move(message), "libdatachannel");
+                    break;
+                case rtc::LogLevel::Info:
+                    tr_logAddInfo(std::move(message), "libdatachannel");
+                    break;
+                case rtc::LogLevel::Debug:
+                    tr_logAddDebug(std::move(message), "libdatachannel");
+                    break;
+                case rtc::LogLevel::Verbose:
+                    tr_logAddTrace(std::move(message), "libdatachannel");
+                    break;
+                default:
+                    break;
+                }
+            });
+        tr_logAddDebug("libdatachannel diagnostics enabled (SCTP association and stream reset events)", "WebRTC");
+    });
+}
 } // namespace
 
 struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
@@ -231,6 +282,7 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
     explicit State(tr_session* value)
         : session{ value }
     {
+        init_libdatachannel_logging();
     }
 
     State(State const&) = delete;
@@ -709,8 +761,9 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                             {
                                 if (!p.attached)
                                 {
-                                    auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                        std::chrono::steady_clock::now() - p.created).count();
+                                    auto const age = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now() - p.created);
+                                    auto const age_ms = age.count();
                                     tr_logAddDebug(
                                         fmt::format(
                                             "WebRTC peer={} data-channel-error-before-open age-ms={} "
@@ -766,8 +819,7 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             }
             attached = true;
             channel_opened = std::chrono::steady_clock::now();
-            auto const age_ms =
-                std::chrono::duration_cast<std::chrono::milliseconds>(*channel_opened - created).count();
+            auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(*channel_opened - created).count();
             tr_logAddDebug(
                 fmt::format(
                     "WebRTC peer={} data-channel-open age-ms={} direction={} remote={}",
@@ -831,13 +883,27 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                     auto const open_ms = channel_opened ?
                         std::chrono::duration_cast<std::chrono::milliseconds>(now - *channel_opened).count() :
                         0;
-                    auto const termination_class =
-                        reason == "data-channel-closed" ? "data-channel-closed" :
-                        reason == "data-channel-error" ? "data-channel-error" :
-                        reason == "peer-connection-failed" ? "peer-connection-failure" :
-                        reason == "peer-connection-closed" ? "peer-connection-closed" :
-                        reason == "offer-expired" ? "offer-expired" :
-                        "local-peer-removal";
+                    auto termination_class = std::string_view{ "local-peer-removal" };
+                    if (reason == "data-channel-closed")
+                    {
+                        termination_class = "data-channel-closed";
+                    }
+                    else if (reason == "data-channel-error")
+                    {
+                        termination_class = "data-channel-error";
+                    }
+                    else if (reason == "peer-connection-failed")
+                    {
+                        termination_class = "peer-connection-failure";
+                    }
+                    else if (reason == "peer-connection-closed")
+                    {
+                        termination_class = "peer-connection-closed";
+                    }
+                    else if (reason == "offer-expired")
+                    {
+                        termination_class = "offer-expired";
+                    }
                     tr_logAddDebug(
                         fmt::format(
                             "WebRTC lifecycle peer={} direction={} termination-class={} reason={} age-ms={} open-ms={} "
