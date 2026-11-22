@@ -670,6 +670,61 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                         peer->dispatch([](Peer& p) { p.on_open(); });
                     }
                 });
+            // Before the socket is attached, the peer owns DataChannel termination
+            // diagnostics. The socket installs its own callbacks in init() after open.
+            dc->onClosed(
+                [weak]()
+                {
+                    if (auto peer = weak.lock())
+                    {
+                        peer->dispatch(
+                            [](Peer& p)
+                            {
+                                if (!p.attached)
+                                {
+                                    auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now() - p.created).count();
+                                    tr_logAddDebug(
+                                        fmt::format(
+                                            "WebRTC peer={} data-channel-closed-before-open age-ms={} ice={} connection={}",
+                                            p.diagnostic_id,
+                                            age_ms,
+                                            p.last_ice_state,
+                                            p.last_connection_state),
+                                        "WebRTC");
+                                }
+                            });
+                    }
+                });
+            dc->onError(
+                [weak](std::string const& message)
+                {
+                    if (auto peer = weak.lock())
+                    {
+                        auto detail = message.substr(0, 160U);
+                        peer->dispatch(
+                            [detail = std::move(detail)](Peer& p)
+                            {
+                                if (!p.attached)
+                                {
+                                    auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now() - p.created).count();
+                                    tr_logAddDebug(
+                                        fmt::format(
+                                            "WebRTC peer={} data-channel-error-before-open age-ms={} ice={} connection={} detail={}",
+                                            p.diagnostic_id,
+                                            age_ms,
+                                            p.last_ice_state,
+                                            p.last_connection_state,
+                                            detail),
+                                        "WebRTC");
+                                }
+                            });
+                    }
+                });
+            tr_logAddDebug(
+                fmt::format("WebRTC peer={} data-channel-created direction={}", diagnostic_id, incoming ? "incoming" : "outgoing"),
+                "WebRTC");
             if (dc->isOpen())
             {
                 on_open();
@@ -705,10 +760,13 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
             }
             attached = true;
             channel_opened = std::chrono::steady_clock::now();
+            auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(*channel_opened - created).count();
             tr_logAddDebug(
                 fmt::format(
-                    "WebRTC peer={} data channel open; registering BitTorrent peer (remote={})",
+                    "WebRTC peer={} data-channel-open age-ms={} direction={} remote={}",
                     diagnostic_id,
+                    age_ms,
+                    incoming ? "incoming" : "outgoing",
                     socket_address->address().is_ipv6() ? "ipv6" : "ipv4"),
                 "WebRTC");
             auto const weak_state = std::weak_ptr<State>{ parent };
@@ -766,12 +824,20 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                     auto const open_ms = channel_opened ?
                         std::chrono::duration_cast<std::chrono::milliseconds>(now - *channel_opened).count() :
                         0;
+                    auto const termination_class =
+                        reason == "data-channel-closed" ? "data-channel-closed" :
+                        reason == "data-channel-error" ? "data-channel-error" :
+                        reason == "peer-connection-failed" ? "peer-connection-failure" :
+                        reason == "peer-connection-closed" ? "peer-connection-closed" :
+                        reason == "offer-expired" ? "offer-expired" :
+                        "local-peer-removal";
                     tr_logAddDebug(
                         fmt::format(
-                            "WebRTC lifecycle peer={} direction={} reason={} age-ms={} open-ms={} "
+                            "WebRTC lifecycle peer={} direction={} termination-class={} reason={} age-ms={} open-ms={} "
                             "channel-open={} connected={} ice={} connection={} selected={}/{}",
                             diagnostic_id,
                             incoming ? "incoming" : "outgoing",
+                            termination_class,
                             reason,
                             age_ms,
                             open_ms,
