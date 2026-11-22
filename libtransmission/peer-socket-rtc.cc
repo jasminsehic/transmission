@@ -304,6 +304,11 @@ private:
                 auto message = dc_->receive();
                 if (!message)
                 {
+                    // Do not rely solely on onClosed() having been delivered.
+                    if (!dc_->isOpen())
+                    {
+                        on_channel_closed();
+                    }
                     break;
                 }
                 pending_message_ = std::move(*message);
