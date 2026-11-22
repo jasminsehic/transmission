@@ -68,6 +68,10 @@ public:
     {
         if (dc_)
         {
+            if (dc_->isOpen())
+            {
+                log_transport_snapshot("socket-destroyed-while-open");
+            }
             dc_->onAvailable(nullptr);
             dc_->onBufferedAmountLow(nullptr);
             dc_->onClosed(nullptr);
@@ -374,7 +378,29 @@ private:
 #endif
         {
             // A false result means the connected channel buffered the message.
-            if (!dc_->send(data_ptr, n_bytes) && !dc_->isOpen())
+            auto const buffered_before = dc_->bufferedAmount();
+            auto const send_result = dc_->send(data_ptr, n_bytes);
+            auto const buffered_after = dc_->bufferedAmount();
+            auto const bytes_queued_before = bytes_queued_.load();
+
+            // Capture the initial BitTorrent handshake/LTEP traffic without logging piece writes.
+            if (bytes_queued_before < 1024U)
+            {
+                tr_logAddDebug(
+                    fmt::format(
+                        "WebRTC data channel send endpoint={} bytes={} result={} open={} buffered-before={} "
+                        "buffered-after={} bytes-queued-before={}",
+                        display_name(),
+                        n_bytes,
+                        send_result,
+                        dc_->isOpen(),
+                        buffered_before,
+                        buffered_after,
+                        bytes_queued_before),
+                    "WebRTC");
+            }
+
+            if (!send_result && !dc_->isOpen())
             {
                 on_channel_closed();
                 if (error != nullptr)
