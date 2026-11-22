@@ -236,51 +236,55 @@ bool is_libdatachannel_verbose_diagnostic(std::string_view message)
 void init_libdatachannel_logging()
 {
     static auto once = std::once_flag{};
-    std::call_once(once, [] {
-        auto log_level = rtc::LogLevel::Info;
-        if (tr_logLevelIsActive(TR_LOG_DEBUG))
+    std::call_once(
+        once,
+        []
         {
-            log_level = rtc::LogLevel::Debug;
-        }
-        if (tr_logLevelIsActive(TR_LOG_TRACE))
-        {
-            log_level = rtc::LogLevel::Verbose;
-        }
+            auto log_level = rtc::LogLevel::Info;
+            if (tr_logLevelIsActive(TR_LOG_DEBUG))
+            {
+                log_level = rtc::LogLevel::Debug;
+            }
+            if (tr_logLevelIsActive(TR_LOG_TRACE))
+            {
+                log_level = rtc::LogLevel::Verbose;
+            }
 
-        rtc::InitLogger(
-            log_level,
-            [](rtc::LogLevel level, std::string message) {
-                if (level == rtc::LogLevel::Verbose && !is_libdatachannel_verbose_diagnostic(message))
+            rtc::InitLogger(
+                log_level,
+                [](rtc::LogLevel level, std::string message)
                 {
-                    return;
-                }
+                    if (level == rtc::LogLevel::Verbose && !is_libdatachannel_verbose_diagnostic(message))
+                    {
+                        return;
+                    }
 
-                switch (level)
-                {
-                case rtc::LogLevel::Fatal:
-                    tr_logAddCritical(std::move(message), "libdatachannel");
-                    break;
-                case rtc::LogLevel::Error:
-                    tr_logAddError(std::move(message), "libdatachannel");
-                    break;
-                case rtc::LogLevel::Warning:
-                    tr_logAddWarn(std::move(message), "libdatachannel");
-                    break;
-                case rtc::LogLevel::Info:
-                    tr_logAddInfo(std::move(message), "libdatachannel");
-                    break;
-                case rtc::LogLevel::Debug:
-                    tr_logAddDebug(std::move(message), "libdatachannel");
-                    break;
-                case rtc::LogLevel::Verbose:
-                    tr_logAddTrace(std::move(message), "libdatachannel");
-                    break;
-                default:
-                    break;
-                }
-            });
-        tr_logAddDebug("libdatachannel diagnostics enabled (SCTP association and stream reset events)", "WebRTC");
-    });
+                    switch (level)
+                    {
+                    case rtc::LogLevel::Fatal:
+                        tr_logAddCritical(std::move(message), "libdatachannel");
+                        break;
+                    case rtc::LogLevel::Error:
+                        tr_logAddError(std::move(message), "libdatachannel");
+                        break;
+                    case rtc::LogLevel::Warning:
+                        tr_logAddWarn(std::move(message), "libdatachannel");
+                        break;
+                    case rtc::LogLevel::Info:
+                        tr_logAddInfo(std::move(message), "libdatachannel");
+                        break;
+                    case rtc::LogLevel::Debug:
+                        tr_logAddDebug(std::move(message), "libdatachannel");
+                        break;
+                    case rtc::LogLevel::Verbose:
+                        tr_logAddTrace(std::move(message), "libdatachannel");
+                        break;
+                    default:
+                        break;
+                    }
+                });
+            tr_logAddDebug("libdatachannel diagnostics enabled (SCTP association and stream reset events)", "WebRTC");
+        });
 }
 } // namespace
 
