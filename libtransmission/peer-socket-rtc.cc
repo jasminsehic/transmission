@@ -217,12 +217,36 @@ private:
             });
     }
 
+    void log_transport_snapshot(std::string_view event) const
+    {
+        auto const available = dc_ ? dc_->availableAmount() : 0U;
+        auto const buffered = dc_ ? dc_->bufferedAmount() : 0U;
+        auto const pending_size = pending_message_ ?
+            std::visit([](auto const& message) { return message.size(); }, *pending_message_) :
+            0U;
+        tr_logAddDebug(
+            fmt::format(
+                "WebRTC data channel {} endpoint={} open={} available={} buffered={} bytes-queued={} "
+                "bytes-received={} pending-message={} pending-offset={}",
+                event,
+                display_name(),
+                dc_ && dc_->isOpen(),
+                available,
+                buffered,
+                bytes_queued_.load(),
+                bytes_received_.load(),
+                pending_size,
+                pending_offset_),
+            "WebRTC");
+    }
+
     void on_channel_closed()
     {
         if (is_closed_.exchange(true))
         {
             return;
         }
+        log_transport_snapshot("closed");
         if (on_terminal_)
         {
             on_terminal_("data-channel-closed");
@@ -245,6 +269,7 @@ private:
         {
             return;
         }
+        log_transport_snapshot("error");
         auto detail = message.substr(0, 160U);
         std::ranges::replace_if(detail, [](unsigned char c) { return c < 0x20U || c == 0x7FU; }, ' ');
         tr_logAddDebug(fmt::format("WebRTC data channel error endpoint={} detail={}", display_name(), detail), "WebRTC");
