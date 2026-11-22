@@ -682,9 +682,9 @@ struct tr_rtc_signaling::State : std::enable_shared_from_this<State>
                             {
                                 if (!p.attached)
                                 {
-                                    auto const age_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                        std::chrono::steady_clock::now() - p.created)
-                                                            .count();
+                                    auto const age = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now() - p.created);
+                                    auto const age_ms = age.count();
                                     tr_logAddDebug(
                                         fmt::format(
                                             "WebRTC peer={} data-channel-closed-before-open age-ms={} "
