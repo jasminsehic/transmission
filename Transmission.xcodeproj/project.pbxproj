@@ -602,8 +602,6 @@
 		FAAF000000000000000010A3 /* h265nalunit.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAAF000000000000000010A2 /* h265nalunit.cpp */; };
 		FAAF000000000000000010A5 /* av1rtppacketizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAAF000000000000000010A4 /* av1rtppacketizer.cpp */; };
 		FAAF000000000000000010A7 /* av1rtpdepacketizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAAF000000000000000010A6 /* av1rtpdepacketizer.cpp */; };
-		FAAF000000000000000010A9 /* vp8rtppacketizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAAF000000000000000010A8 /* vp8rtppacketizer.cpp */; };
-		FAAF000000000000000010AB /* vp8rtpdepacketizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAAF000000000000000010AA /* vp8rtpdepacketizer.cpp */; };
 		FAAF000000000000000010B1 /* rtcpnackresponder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAAF000000000000000010B0 /* rtcpnackresponder.cpp */; };
 		FAAF000000000000000010B3 /* rtp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAAF000000000000000010B2 /* rtp.cpp */; };
 		FAAF000000000000000010B5 /* capi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FAAF000000000000000010B4 /* capi.cpp */; };
@@ -1752,8 +1750,6 @@
 		FAAF000000000000000010A2 /* h265nalunit.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "h265nalunit.cpp"; path = "third-party/libdatachannel/src/h265nalunit.cpp"; sourceTree = SOURCE_ROOT; };
 		FAAF000000000000000010A4 /* av1rtppacketizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "av1rtppacketizer.cpp"; path = "third-party/libdatachannel/src/av1rtppacketizer.cpp"; sourceTree = SOURCE_ROOT; };
 		FAAF000000000000000010A6 /* av1rtpdepacketizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "av1rtpdepacketizer.cpp"; path = "third-party/libdatachannel/src/av1rtpdepacketizer.cpp"; sourceTree = SOURCE_ROOT; };
-		FAAF000000000000000010A8 /* vp8rtppacketizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "vp8rtppacketizer.cpp"; path = "third-party/libdatachannel/src/vp8rtppacketizer.cpp"; sourceTree = SOURCE_ROOT; };
-		FAAF000000000000000010AA /* vp8rtpdepacketizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "vp8rtpdepacketizer.cpp"; path = "third-party/libdatachannel/src/vp8rtpdepacketizer.cpp"; sourceTree = SOURCE_ROOT; };
 		FAAF000000000000000010B0 /* rtcpnackresponder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "rtcpnackresponder.cpp"; path = "third-party/libdatachannel/src/rtcpnackresponder.cpp"; sourceTree = SOURCE_ROOT; };
 		FAAF000000000000000010B2 /* rtp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "rtp.cpp"; path = "third-party/libdatachannel/src/rtp.cpp"; sourceTree = SOURCE_ROOT; };
 		FAAF000000000000000010B4 /* capi.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "capi.cpp"; path = "third-party/libdatachannel/src/capi.cpp"; sourceTree = SOURCE_ROOT; };
@@ -2977,8 +2973,6 @@
 				FAAF000000000000000010A2 /* h265nalunit.cpp */,
 				FAAF000000000000000010A4 /* av1rtppacketizer.cpp */,
 				FAAF000000000000000010A6 /* av1rtpdepacketizer.cpp */,
-				FAAF000000000000000010A8 /* vp8rtppacketizer.cpp */,
-				FAAF000000000000000010AA /* vp8rtpdepacketizer.cpp */,
 				FAAF000000000000000010B0 /* rtcpnackresponder.cpp */,
 				FAAF000000000000000010B2 /* rtp.cpp */,
 				FAAF000000000000000010B4 /* capi.cpp */,
@@ -4357,8 +4351,6 @@
 				FAAF000000000000000010A3 /* h265nalunit.cpp in Sources */,
 				FAAF000000000000000010A5 /* av1rtppacketizer.cpp in Sources */,
 				FAAF000000000000000010A7 /* av1rtpdepacketizer.cpp in Sources */,
-				FAAF000000000000000010A9 /* vp8rtppacketizer.cpp in Sources */,
-				FAAF000000000000000010AB /* vp8rtpdepacketizer.cpp in Sources */,
 				FAAF000000000000000010B1 /* rtcpnackresponder.cpp in Sources */,
 				FAAF000000000000000010B3 /* rtp.cpp in Sources */,
 				FAAF000000000000000010B5 /* capi.cpp in Sources */,
