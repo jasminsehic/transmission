@@ -225,7 +225,10 @@ std::string new_offer_id()
 
 bool is_libdatachannel_verbose_diagnostic(std::string_view message)
 {
-    return message.find("SCTP reset event") != std::string_view::npos ||
+    return message.starts_with("usrsctp:") ||
+        message.find("SCTP reset event") != std::string_view::npos ||
+        message.find("SCTP stream reset notification") != std::string_view::npos ||
+        message.find("SCTP reset requested") != std::string_view::npos ||
         message.find("SCTP association change event") != std::string_view::npos ||
         message.find("Processing notification, type=") != std::string_view::npos ||
         message.find("SCTP shutdown") != std::string_view::npos ||
